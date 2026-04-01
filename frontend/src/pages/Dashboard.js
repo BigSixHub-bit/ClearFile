@@ -108,7 +108,7 @@ export default function Dashboard() {
               <p className="text-2xl font-bold text-[#006400]" data-testid="total-income-value">
                 {formatCurrency(dashboard?.total_income || 0)}
               </p>
-              <p className="text-xs text-slate-400 mt-1">This month</p>
+              <p className="text-xs text-slate-400 mt-1">All time</p>
             </CardContent>
           </Card>
 
@@ -124,7 +124,7 @@ export default function Dashboard() {
               <p className="text-2xl font-bold text-red-500" data-testid="total-expenses-value">
                 {formatCurrency(dashboard?.total_expenses || 0)}
               </p>
-              <p className="text-xs text-slate-400 mt-1">This month</p>
+              <p className="text-xs text-slate-400 mt-1">All time</p>
             </CardContent>
           </Card>
 

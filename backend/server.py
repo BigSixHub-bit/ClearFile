@@ -621,15 +621,14 @@ async def delete_transaction(tx_id: str, user: dict = Depends(get_current_user))
 async def get_dashboard(user: dict = Depends(get_current_user)):
     user_id = user["id"]
     now = datetime.now(timezone.utc)
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     
-    # Get monthly transactions
-    transactions = await db.transactions.find({
-        "user_id": user_id,
-        "date": {"$gte": month_start.isoformat()}
-    }, {"_id": 0}).to_list(1000)
+    # Get ALL transactions for the user (show all-time totals on dashboard)
+    all_user_transactions = await db.transactions.find({"user_id": user_id}, {"_id": 0}).to_list(10000)
     
-    # Calculate totals
+    # Use all transactions for totals (better UX)
+    transactions = all_user_transactions
+    
+    # Calculate totals from all transactions
     total_income = sum(tx["amount"] for tx in transactions if tx["type"] == "income")
     total_expenses = sum(tx["amount"] for tx in transactions if tx["type"] == "expense")
     net_income = total_income - total_expenses
@@ -652,9 +651,8 @@ async def get_dashboard(user: dict = Depends(get_current_user)):
     
     # Calculate Tax Health Score (0-100)
     # Based on: categorization rate, receipt uploads, timely tracking
-    all_transactions = await db.transactions.find({"user_id": user_id}, {"_id": 0}).to_list(1000)
-    categorized_count = sum(1 for tx in all_transactions if tx.get("category"))
-    total_tx_count = len(all_transactions) or 1
+    categorized_count = sum(1 for tx in all_user_transactions if tx.get("category"))
+    total_tx_count = len(all_user_transactions) or 1
     
     receipts = await db.receipts.count_documents({"user_id": user_id})
     

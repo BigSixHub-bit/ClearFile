@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import ReactMarkdown from 'react-markdown';
 import Layout from '../components/Layout';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -104,7 +105,28 @@ export default function ChatAssistant() {
                     ? 'bg-[#006400] text-white'
                     : 'bg-slate-100 text-slate-700'
                 }`}>
-                  <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                  {message.role === 'assistant' ? (
+                    <div className="prose prose-sm prose-slate max-w-none">
+                      <ReactMarkdown
+                        components={{
+                          h1: ({children}) => <h1 className="text-lg font-bold text-[#022c22] mb-2 mt-0">{children}</h1>,
+                          h2: ({children}) => <h2 className="text-base font-bold text-[#022c22] mb-2 mt-3">{children}</h2>,
+                          h3: ({children}) => <h3 className="text-sm font-semibold text-[#022c22] mb-1 mt-2">{children}</h3>,
+                          p: ({children}) => <p className="text-sm mb-2 last:mb-0">{children}</p>,
+                          ul: ({children}) => <ul className="list-disc list-inside text-sm mb-2 space-y-1">{children}</ul>,
+                          ol: ({children}) => <ol className="list-decimal list-inside text-sm mb-2 space-y-1">{children}</ol>,
+                          li: ({children}) => <li className="text-sm">{children}</li>,
+                          strong: ({children}) => <strong className="font-semibold text-[#006400]">{children}</strong>,
+                          em: ({children}) => <em className="italic">{children}</em>,
+                          code: ({children}) => <code className="bg-slate-200 px-1 py-0.5 rounded text-xs">{children}</code>,
+                        }}
+                      >
+                        {message.content}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                  )}
                 </div>
               </div>
             ))}
