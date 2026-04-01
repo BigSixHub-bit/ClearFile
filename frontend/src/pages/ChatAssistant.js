@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import Layout from '../components/Layout';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -106,8 +107,9 @@ export default function ChatAssistant() {
                     : 'bg-slate-100 text-slate-700'
                 }`}>
                   {message.role === 'assistant' ? (
-                    <div className="prose prose-sm prose-slate max-w-none">
+                    <div className="prose prose-sm prose-slate max-w-none overflow-x-auto">
                       <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
                         components={{
                           h1: ({children}) => <h1 className="text-lg font-bold text-[#022c22] mb-2 mt-0">{children}</h1>,
                           h2: ({children}) => <h2 className="text-base font-bold text-[#022c22] mb-2 mt-3">{children}</h2>,
@@ -119,6 +121,26 @@ export default function ChatAssistant() {
                           strong: ({children}) => <strong className="font-semibold text-[#006400]">{children}</strong>,
                           em: ({children}) => <em className="italic">{children}</em>,
                           code: ({children}) => <code className="bg-slate-200 px-1 py-0.5 rounded text-xs">{children}</code>,
+                          table: ({children}) => (
+                            <div className="overflow-x-auto my-3">
+                              <table className="min-w-full border-collapse border border-slate-300 rounded-lg text-sm">
+                                {children}
+                              </table>
+                            </div>
+                          ),
+                          thead: ({children}) => <thead className="bg-[#E8F5E9]">{children}</thead>,
+                          tbody: ({children}) => <tbody className="divide-y divide-slate-200">{children}</tbody>,
+                          tr: ({children}) => <tr className="hover:bg-slate-50">{children}</tr>,
+                          th: ({children}) => (
+                            <th className="px-3 py-2 text-left font-semibold text-[#006400] border border-slate-300">
+                              {children}
+                            </th>
+                          ),
+                          td: ({children}) => (
+                            <td className="px-3 py-2 border border-slate-300">
+                              {children}
+                            </td>
+                          ),
                         }}
                       >
                         {message.content}
