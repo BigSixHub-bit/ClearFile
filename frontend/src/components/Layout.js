@@ -1,20 +1,61 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { 
   LayoutDashboard, Receipt, Calculator, FileText, BookOpen, 
-  Settings, MessageCircle, LogOut, Menu, X, Shield
+  Settings, MessageCircle, LogOut, Menu, X, Shield, Bell
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Switch } from '../components/ui/switch';
 import { Sheet, SheetContent, SheetTrigger } from '../components/ui/sheet';
+import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
+import { Badge } from '../components/ui/badge';
+
+const API = process.env.REACT_APP_BACKEND_URL;
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
   const { language, toggleLanguage, t } = useLanguage();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    fetchNotifications();
+    checkDeadlines();
+  }, []);
+
+  const fetchNotifications = async () => {
+    try {
+      const { data } = await axios.get(`${API}/api/notifications`, { withCredentials: true });
+      setNotifications(data);
+      setUnreadCount(data.filter(n => !n.read).length);
+    } catch (error) {
+      console.error('Failed to fetch notifications');
+    }
+  };
+
+  const checkDeadlines = async () => {
+    try {
+      await axios.post(`${API}/api/notifications/check-deadlines`, {}, { withCredentials: true });
+      fetchNotifications();
+    } catch (error) {
+      console.error('Failed to check deadlines');
+    }
+  };
+
+  const markAsRead = async () => {
+    try {
+      await axios.post(`${API}/api/notifications/mark-read`, {}, { withCredentials: true });
+      setUnreadCount(0);
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (error) {
+      console.error('Failed to mark as read');
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -114,16 +155,53 @@ export default function Layout({ children }) {
             </div>
             <span className="font-bold text-[#022c22]" style={{ fontFamily: 'Outfit' }}>NairaTrack</span>
           </div>
-          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" data-testid="mobile-menu-btn">
-                <Menu className="w-6 h-6" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-72 p-0">
-              <NavContent mobile />
-            </SheetContent>
-          </Sheet>
+          <div className="flex items-center gap-2">
+            {/* Notifications */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative" data-testid="notifications-btn">
+                  <Bell className="w-5 h-5" />
+                  {unreadCount > 0 && (
+                    <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-red-500 text-white text-xs">
+                      {unreadCount}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-0" align="end">
+                <div className="p-3 border-b border-slate-200 flex items-center justify-between">
+                  <h4 className="font-semibold text-[#022c22]">Notifications</h4>
+                  {unreadCount > 0 && (
+                    <Button variant="ghost" size="sm" onClick={markAsRead} className="text-xs">
+                      Mark all read
+                    </Button>
+                  )}
+                </div>
+                <div className="max-h-64 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <p className="p-4 text-center text-slate-400 text-sm">No notifications</p>
+                  ) : (
+                    notifications.slice(0, 5).map((notif, idx) => (
+                      <div key={notif.id || idx} className={`p-3 border-b border-slate-100 ${!notif.read ? 'bg-[#E8F5E9]' : ''}`}>
+                        <p className="font-medium text-sm text-[#022c22]">{notif.title}</p>
+                        <p className="text-xs text-slate-500 mt-1">{notif.message}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" data-testid="mobile-menu-btn">
+                  <Menu className="w-6 h-6" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72 p-0">
+                <NavContent mobile />
+              </SheetContent>
+            </Sheet>
+          </div>
         </div>
       </header>
 

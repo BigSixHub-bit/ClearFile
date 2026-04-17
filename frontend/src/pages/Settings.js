@@ -14,7 +14,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { toast } from 'sonner';
 import { 
   User, Bell, Moon, Languages, Shield, CreditCard, 
-  Link2, Unlink, Building, Check, Crown, FileDown
+  Link2, Unlink, Building, Check, Crown, FileDown, Users
 } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -32,11 +32,17 @@ export default function Settings() {
   });
   const [darkMode, setDarkMode] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState('viewer');
 
   useEffect(() => {
     fetchBankAccounts();
     fetchSupportedBanks();
-  }, []);
+    if (user?.subscription_plan === 'business') {
+      fetchTeamMembers();
+    }
+  }, [user]);
 
   const fetchBankAccounts = async () => {
     try {
@@ -53,6 +59,44 @@ export default function Settings() {
       setSupportedBanks(data.banks);
     } catch (error) {
       console.error('Failed to load banks');
+    }
+  };
+
+  const fetchTeamMembers = async () => {
+    try {
+      const { data } = await axios.get(`${API}/api/team/members`, { withCredentials: true });
+      setTeamMembers(data);
+    } catch (error) {
+      console.error('Failed to load team members');
+    }
+  };
+
+  const handleInviteTeamMember = async () => {
+    if (!inviteEmail) return;
+    setLoading(true);
+    try {
+      await axios.post(`${API}/api/team/invite`, {
+        email: inviteEmail,
+        role: inviteRole
+      }, { withCredentials: true });
+      toast.success('Invitation sent!');
+      setInviteEmail('');
+      fetchTeamMembers();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to send invitation');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveTeamMember = async (memberId) => {
+    if (!window.confirm('Remove this team member?')) return;
+    try {
+      await axios.delete(`${API}/api/team/members/${memberId}`, { withCredentials: true });
+      toast.success('Team member removed');
+      fetchTeamMembers();
+    } catch (error) {
+      toast.error('Failed to remove team member');
     }
   };
 
@@ -488,7 +532,7 @@ export default function Settings() {
               <CardDescription>Download your financial data as CSV or JSON</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Button
                   variant="outline"
                   className="rounded-xl border-slate-200 hover:bg-[#E8F5E9]"
@@ -496,7 +540,7 @@ export default function Settings() {
                   data-testid="export-transactions-csv"
                 >
                   <FileDown className="w-4 h-4 mr-2" />
-                  Export Transactions (CSV)
+                  Transactions (CSV)
                 </Button>
                 <Button
                   variant="outline"
@@ -505,12 +549,84 @@ export default function Settings() {
                   data-testid="export-tax-report-csv"
                 >
                   <FileDown className="w-4 h-4 mr-2" />
-                  Export Tax Report (CSV)
+                  Tax Report (CSV)
+                </Button>
+                <Button
+                  className="rounded-xl bg-[#006400] hover:bg-[#004d00] text-white"
+                  onClick={() => window.open(`${API}/api/export/tax-report?format=pdf`, '_blank')}
+                  data-testid="export-tax-report-pdf"
+                >
+                  <FileDown className="w-4 h-4 mr-2" />
+                  Tax Report (PDF)
                 </Button>
               </div>
               <p className="text-xs text-slate-500">
                 Note: You'll need to be logged in for exports to work. If download fails, try refreshing the page first.
               </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Team Management (Business Plan) */}
+        {user?.subscription_plan === 'business' && (
+          <Card className="rounded-2xl border-slate-200">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2" style={{ fontFamily: 'Outfit' }}>
+                <Users className="w-5 h-5 text-[#006400]" />
+                Team Access
+              </CardTitle>
+              <CardDescription>Invite your accountant or team members to view your data</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input
+                  type="email"
+                  placeholder="Email address"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  className="rounded-xl flex-1"
+                  data-testid="invite-email-input"
+                />
+                <Select value={inviteRole} onValueChange={setInviteRole}>
+                  <SelectTrigger className="w-32 rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="viewer">Viewer</SelectItem>
+                    <SelectItem value="accountant">Accountant</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button 
+                  onClick={handleInviteTeamMember}
+                  disabled={!inviteEmail || loading}
+                  className="bg-[#006400] hover:bg-[#004d00] text-white rounded-xl"
+                  data-testid="invite-btn"
+                >
+                  Invite
+                </Button>
+              </div>
+              
+              {teamMembers.length > 0 && (
+                <div className="space-y-2">
+                  {teamMembers.map((member, idx) => (
+                    <div key={member.id || idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+                      <div>
+                        <p className="font-medium text-[#022c22]">{member.email}</p>
+                        <p className="text-xs text-slate-500 capitalize">{member.role} • {member.status}</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveTeamMember(member.id)}
+                        className="text-red-500 hover:text-red-700"
+                        data-testid={`remove-member-${idx}`}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         )}

@@ -26,6 +26,14 @@ from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from typing import List, Optional
 from pathlib import Path
 
+# PDF Generation
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch, cm
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+
 # Emergent Integrations for AI
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
@@ -1178,7 +1186,7 @@ async def export_transactions(
 
 @api_router.get("/export/tax-report")
 async def export_tax_report(
-    format: str = Query("json", enum=["json", "csv"]),
+    format: str = Query("json", enum=["json", "csv", "pdf"]),
     user: dict = Depends(get_current_user)
 ):
     """Export comprehensive tax report"""
@@ -1187,6 +1195,7 @@ async def export_tax_report(
     
     user_id = user["id"]
     business_type = user.get("business_type", "freelancer")
+    user_name = user.get("name", "User")
     
     # Get all transactions for the year
     year_start = datetime.now(timezone.utc).replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -1252,6 +1261,138 @@ async def export_tax_report(
             io.BytesIO(json.dumps(report, indent=2).encode()),
             media_type="application/json",
             headers={"Content-Disposition": f"attachment; filename=nairatrack_tax_report_{datetime.now().year}.json"}
+        )
+    
+    if format == "pdf":
+        # Generate PDF report
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=72)
+        
+        styles = getSampleStyleSheet()
+        styles.add(ParagraphStyle(name='CustomTitle', fontSize=24, alignment=TA_CENTER, textColor=colors.HexColor('#006400'), spaceAfter=20))
+        styles.add(ParagraphStyle(name='SectionHeader', fontSize=14, textColor=colors.HexColor('#006400'), spaceBefore=15, spaceAfter=10, fontName='Helvetica-Bold'))
+        styles.add(ParagraphStyle(name='Normal_Right', fontSize=10, alignment=TA_RIGHT))
+        
+        elements = []
+        
+        # Header
+        elements.append(Paragraph("NairaTrack", styles['CustomTitle']))
+        elements.append(Paragraph("Tax Report", styles['Heading2']))
+        elements.append(Spacer(1, 20))
+        
+        # Report Info
+        info_data = [
+            ["Prepared For:", user_name],
+            ["Tax Year:", str(datetime.now().year)],
+            ["Business Type:", business_type.title()],
+            ["Tax Type:", tax_type],
+            ["Generated:", datetime.now().strftime("%B %d, %Y")]
+        ]
+        info_table = Table(info_data, colWidths=[2*inch, 4*inch])
+        info_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ]))
+        elements.append(info_table)
+        elements.append(Spacer(1, 30))
+        
+        # Tax Summary
+        elements.append(Paragraph("Tax Summary", styles['SectionHeader']))
+        
+        summary_data = [
+            ["Description", "Amount (₦)"],
+            ["Gross Income", f"{gross_income:,.2f}"],
+            ["Total Expenses", f"({total_expenses:,.2f})"],
+            ["Deductible Expenses", f"({deductible_expenses:,.2f})"],
+            ["Taxable Income", f"{taxable_income:,.2f}"],
+            ["", ""],
+            ["Income Tax", f"{income_tax:,.2f}"],
+            ["VAT (7.5%)", f"{vat:,.2f}"],
+            ["TOTAL TAX OWED", f"{income_tax + vat:,.2f}"]
+        ]
+        
+        summary_table = Table(summary_data, colWidths=[4*inch, 2*inch])
+        summary_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#006400')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#E8F5E9')),
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ]))
+        elements.append(summary_table)
+        elements.append(Spacer(1, 30))
+        
+        # Income Breakdown
+        if income_by_category:
+            elements.append(Paragraph("Income Breakdown", styles['SectionHeader']))
+            income_data = [["Category", "Amount (₦)"]]
+            for cat, amount in income_by_category.items():
+                income_data.append([cat, f"{amount:,.2f}"])
+            
+            income_table = Table(income_data, colWidths=[4*inch, 2*inch])
+            income_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#006400')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ]))
+            elements.append(income_table)
+            elements.append(Spacer(1, 20))
+        
+        # Expense Breakdown
+        if expense_by_category:
+            elements.append(Paragraph("Expense Breakdown", styles['SectionHeader']))
+            expense_data = [["Category", "Amount (₦)", "Deductible"]]
+            for cat, amount in expense_by_category.items():
+                deductible = "Yes" if cat in deductible_categories else "No"
+                expense_data.append([cat, f"{amount:,.2f}", deductible])
+            
+            expense_table = Table(expense_data, colWidths=[3*inch, 2*inch, 1*inch])
+            expense_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#006400')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+                ('ALIGN', (2, 0), (2, -1), 'CENTER'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ]))
+            elements.append(expense_table)
+            elements.append(Spacer(1, 30))
+        
+        # Disclaimer
+        elements.append(Paragraph("Disclaimer", styles['SectionHeader']))
+        elements.append(Paragraph(
+            "This report is generated by NairaTrack for informational purposes only. "
+            "It does not constitute professional tax advice. Please consult a certified "
+            "tax professional or the Federal Inland Revenue Service (FIRS) for official tax filing.",
+            styles['Normal']
+        ))
+        
+        # Footer
+        elements.append(Spacer(1, 40))
+        elements.append(Paragraph("Generated by NairaTrack - Nigerian Tax & Expense Management", 
+                                  ParagraphStyle(name='Footer', fontSize=8, textColor=colors.grey, alignment=TA_CENTER)))
+        
+        doc.build(elements)
+        buffer.seek(0)
+        
+        return StreamingResponse(
+            buffer,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=nairatrack_tax_report_{datetime.now().year}.pdf"}
         )
     
     # CSV format - flatten the report
@@ -2106,6 +2247,243 @@ async def get_mono_config():
         "public_key": MONO_PUBLIC_KEY,
         "configured": bool(MONO_SECRET_KEY and MONO_PUBLIC_KEY)
     }
+
+# ========================
+# MULTI-USER ACCESS (Business Plan)
+# ========================
+
+class TeamMemberInvite(BaseModel):
+    email: EmailStr
+    role: str = "viewer"  # viewer or accountant
+
+@api_router.post("/team/invite")
+async def invite_team_member(data: TeamMemberInvite, user: dict = Depends(get_current_user)):
+    """Invite a team member (Business plan only)"""
+    if user.get("subscription_plan") != "business":
+        raise HTTPException(status_code=403, detail="Multi-user access requires Business plan")
+    
+    # Check if already invited
+    existing = await db.team_members.find_one({
+        "owner_id": user["id"],
+        "email": data.email.lower()
+    })
+    if existing:
+        raise HTTPException(status_code=400, detail="User already invited")
+    
+    invite_token = secrets.token_urlsafe(32)
+    
+    team_member = {
+        "id": str(uuid.uuid4()),
+        "owner_id": user["id"],
+        "owner_email": user["email"],
+        "email": data.email.lower(),
+        "role": data.role,
+        "status": "pending",
+        "invite_token": invite_token,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.team_members.insert_one(team_member)
+    
+    # Send invite email
+    if RESEND_API_KEY:
+        try:
+            invite_url = f"{FRONTEND_URL}/team/accept?token={invite_token}"
+            await asyncio.to_thread(resend.Emails.send, {
+                "from": SENDER_EMAIL,
+                "to": [data.email],
+                "subject": f"You've been invited to join {user['name']}'s NairaTrack account",
+                "html": f"""
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <div style="background: #006400; padding: 20px; text-align: center;">
+                        <h1 style="color: white; margin: 0;">NairaTrack</h1>
+                    </div>
+                    <div style="padding: 30px; background: #f9f9f9;">
+                        <h2 style="color: #022c22;">Team Invitation</h2>
+                        <p style="color: #555;">{user['name']} has invited you to access their NairaTrack account as a {data.role}.</p>
+                        <a href="{invite_url}" style="display: inline-block; background: #006400; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; margin: 20px 0;">Accept Invitation</a>
+                    </div>
+                </div>
+                """
+            })
+        except Exception as e:
+            logger.error(f"Failed to send team invite email: {e}")
+    
+    team_member.pop("_id", None)
+    team_member.pop("invite_token", None)
+    return team_member
+
+@api_router.get("/team/members")
+async def get_team_members(user: dict = Depends(get_current_user)):
+    """Get all team members for current user"""
+    if user.get("subscription_plan") != "business":
+        raise HTTPException(status_code=403, detail="Multi-user access requires Business plan")
+    
+    members = await db.team_members.find(
+        {"owner_id": user["id"]},
+        {"_id": 0, "invite_token": 0}
+    ).to_list(50)
+    return members
+
+@api_router.post("/team/accept")
+async def accept_team_invite(request: Request):
+    """Accept a team invitation"""
+    data = await request.json()
+    token = data.get("token")
+    
+    if not token:
+        raise HTTPException(status_code=400, detail="Invite token required")
+    
+    invite = await db.team_members.find_one({"invite_token": token})
+    if not invite:
+        raise HTTPException(status_code=400, detail="Invalid or expired invitation")
+    
+    if invite["status"] != "pending":
+        return {"message": "Invitation already accepted"}
+    
+    await db.team_members.update_one(
+        {"invite_token": token},
+        {"$set": {"status": "active"}, "$unset": {"invite_token": ""}}
+    )
+    
+    return {"message": "Invitation accepted", "owner_email": invite["owner_email"]}
+
+@api_router.delete("/team/members/{member_id}")
+async def remove_team_member(member_id: str, user: dict = Depends(get_current_user)):
+    """Remove a team member"""
+    result = await db.team_members.delete_one({
+        "id": member_id,
+        "owner_id": user["id"]
+    })
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Team member not found")
+    
+    return {"message": "Team member removed"}
+
+# ========================
+# NOTIFICATIONS
+# ========================
+
+@api_router.get("/notifications")
+async def get_notifications(user: dict = Depends(get_current_user)):
+    """Get user notifications"""
+    notifications = await db.notifications.find(
+        {"user_id": user["id"]},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
+    return notifications
+
+@api_router.post("/notifications/mark-read")
+async def mark_notifications_read(request: Request, user: dict = Depends(get_current_user)):
+    """Mark notifications as read"""
+    data = await request.json()
+    notification_ids = data.get("ids", [])
+    
+    if notification_ids:
+        await db.notifications.update_many(
+            {"id": {"$in": notification_ids}, "user_id": user["id"]},
+            {"$set": {"read": True}}
+        )
+    else:
+        await db.notifications.update_many(
+            {"user_id": user["id"]},
+            {"$set": {"read": True}}
+        )
+    
+    return {"message": "Notifications marked as read"}
+
+@api_router.get("/notifications/unread-count")
+async def get_unread_count(user: dict = Depends(get_current_user)):
+    """Get count of unread notifications"""
+    count = await db.notifications.count_documents({
+        "user_id": user["id"],
+        "read": False
+    })
+    return {"count": count}
+
+async def create_notification(user_id: str, title: str, message: str, notification_type: str = "info"):
+    """Helper to create a notification"""
+    notification = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "title": title,
+        "message": message,
+        "type": notification_type,
+        "read": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.notifications.insert_one(notification)
+    return notification
+
+@api_router.post("/notifications/check-deadlines")
+async def check_deadline_notifications(user: dict = Depends(get_current_user)):
+    """Check and create notifications for upcoming tax deadlines"""
+    now = datetime.now(timezone.utc)
+    user_id = user["id"]
+    notifications_created = []
+    
+    # VAT deadline - 21st of each month
+    vat_deadline = now.replace(day=21)
+    if now.day >= 15 and now.day <= 21:
+        existing = await db.notifications.find_one({
+            "user_id": user_id,
+            "type": "vat_reminder",
+            "created_at": {"$gte": now.replace(day=1).isoformat()}
+        })
+        if not existing:
+            notif = await create_notification(
+                user_id,
+                "VAT Filing Reminder",
+                f"VAT filing deadline is on the 21st. Make sure to file your VAT returns.",
+                "vat_reminder"
+            )
+            notifications_created.append(notif)
+    
+    # Annual returns - March 31
+    if now.month == 3 and now.day >= 15:
+        existing = await db.notifications.find_one({
+            "user_id": user_id,
+            "type": "annual_reminder",
+            "created_at": {"$gte": now.replace(month=3, day=1).isoformat()}
+        })
+        if not existing:
+            notif = await create_notification(
+                user_id,
+                "Annual Tax Returns Due",
+                "Annual personal income tax returns are due by March 31st.",
+                "annual_reminder"
+            )
+            notifications_created.append(notif)
+    
+    # Monthly summary - 1st of each month
+    if now.day == 1:
+        existing = await db.notifications.find_one({
+            "user_id": user_id,
+            "type": "monthly_summary",
+            "created_at": {"$gte": now.isoformat()}
+        })
+        if not existing:
+            # Get last month stats
+            last_month = now - timedelta(days=1)
+            month_start = last_month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            transactions = await db.transactions.find({
+                "user_id": user_id,
+                "created_at": {"$gte": month_start.isoformat(), "$lt": now.isoformat()}
+            }).to_list(1000)
+            
+            income = sum(tx["amount"] for tx in transactions if tx["type"] == "income")
+            expenses = sum(tx["amount"] for tx in transactions if tx["type"] == "expense")
+            
+            notif = await create_notification(
+                user_id,
+                "Monthly Summary Ready",
+                f"Your {last_month.strftime('%B')} summary: ₦{income:,.0f} income, ₦{expenses:,.0f} expenses",
+                "monthly_summary"
+            )
+            notifications_created.append(notif)
+    
+    return {"notifications_created": len(notifications_created), "notifications": notifications_created}
 
 # ========================
 # HEALTH CHECK
