@@ -221,7 +221,7 @@ export default function Dashboard() {
               {spendingData.length > 0 ? (
                 <div className="flex flex-col lg:flex-row items-center gap-6">
                   <div className="w-full lg:w-1/2 h-64">
-                    <ResponsiveContainer>
+                    <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
                           data={spendingData}
