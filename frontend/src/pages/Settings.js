@@ -60,13 +60,43 @@ export default function Settings() {
     e.preventDefault();
     setLoading(true);
     try {
+      // First, try Mono real bank linking
+      const { data: monoData } = await axios.post(`${API}/api/mono/initiate-linking`, {}, { withCredentials: true });
+      
+      if (monoData.mode === 'live' && monoData.mono_url) {
+        // Redirect to Mono Connect widget
+        window.location.href = monoData.mono_url;
+        return;
+      }
+      
+      // Fallback to mock bank linking
       await axios.post(`${API}/api/bank-accounts`, newBankAccount, { withCredentials: true });
-      toast.success('Bank account linked successfully!');
+      toast.success('Bank account linked successfully! (Demo Mode)');
       setIsLinkDialogOpen(false);
       setNewBankAccount({ bank_name: '', account_number: '', account_name: '' });
       fetchBankAccounts();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to link bank account');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMonoLinking = async () => {
+    setLoading(true);
+    try {
+      const { data } = await axios.post(`${API}/api/mono/initiate-linking`, {}, { withCredentials: true });
+      
+      if (data.mode === 'live' && data.mono_url) {
+        window.location.href = data.mono_url;
+      } else {
+        // Show mock dialog
+        setIsLinkDialogOpen(true);
+        toast.info('Mono not configured. Using simulated bank linking.');
+      }
+    } catch (error) {
+      setIsLinkDialogOpen(true);
+      toast.info('Using simulated bank linking mode.');
     } finally {
       setLoading(false);
     }
@@ -90,14 +120,73 @@ export default function Settings() {
   };
 
   const handleUpgradePlan = async (plan) => {
+    if (user?.subscription_plan === plan) {
+      toast.info('You are already on this plan');
+      return;
+    }
+    
+    setLoading(true);
     try {
-      await axios.put(`${API}/api/user/subscription`, { plan }, { withCredentials: true });
-      toast.success(`Upgraded to ${plan} plan!`);
-      window.location.reload();
+      // Initialize Paystack payment
+      const callbackUrl = `${window.location.origin}/settings?payment=success&plan=${plan}`;
+      const { data } = await axios.post(`${API}/api/subscription/initialize`, {
+        plan,
+        callback_url: callbackUrl
+      }, { withCredentials: true });
+      
+      if (data.authorization_url) {
+        // Redirect to Paystack
+        window.location.href = data.authorization_url;
+      } else {
+        // Fallback: direct upgrade (for demo/test mode)
+        await axios.put(`${API}/api/user/subscription`, { plan }, { withCredentials: true });
+        toast.success(`Upgraded to ${plan} plan!`);
+        window.location.reload();
+      }
     } catch (error) {
-      toast.error('Failed to upgrade plan');
+      // If Paystack not configured, do direct upgrade
+      if (error.response?.status === 500) {
+        try {
+          await axios.put(`${API}/api/user/subscription`, { plan }, { withCredentials: true });
+          toast.success(`Upgraded to ${plan} plan!`);
+          window.location.reload();
+        } catch (e) {
+          toast.error('Failed to upgrade plan');
+        }
+      } else {
+        toast.error(error.response?.data?.detail || 'Failed to initiate payment');
+      }
+    } finally {
+      setLoading(false);
     }
   };
+
+  // Handle payment callback
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get('payment');
+    const reference = params.get('reference') || params.get('trxref');
+    const plan = params.get('plan');
+    
+    if (payment === 'success' && reference) {
+      // Verify payment
+      axios.get(`${API}/api/subscription/verify/${reference}`, { withCredentials: true })
+        .then(({ data }) => {
+          if (data.status === 'success') {
+            toast.success(`Successfully upgraded to ${data.plan} plan!`);
+            window.history.replaceState({}, '', '/settings');
+            window.location.reload();
+          }
+        })
+        .catch(() => {
+          toast.error('Payment verification failed');
+        });
+    } else if (params.get('bank_linked') === 'true') {
+      toast.success('Bank account linked successfully!');
+      window.history.replaceState({}, '', '/settings');
+      fetchBankAccounts();
+    }
+  }, []);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-NG', {
@@ -191,15 +280,18 @@ export default function Settings() {
                   {user?.subscription_plan !== plan.id && (
                     <Button
                       onClick={() => handleUpgradePlan(plan.id)}
+                      disabled={loading}
                       variant={plan.id === 'growth' ? 'default' : 'outline'}
                       className={`w-full rounded-xl ${
                         plan.id === 'growth' ? 'bg-[#006400] hover:bg-[#004d00] text-white' : ''
                       }`}
                       data-testid={`upgrade-to-${plan.id}`}
                     >
-                      {plans.findIndex(p => p.id === user?.subscription_plan) < plans.findIndex(p => p.id === plan.id)
-                        ? 'Upgrade'
-                        : 'Switch'}
+                      {loading ? 'Processing...' : (
+                        plans.findIndex(p => p.id === user?.subscription_plan) < plans.findIndex(p => p.id === plan.id)
+                          ? 'Upgrade with Paystack'
+                          : 'Switch Plan'
+                      )}
                     </Button>
                   )}
                 </div>
@@ -217,84 +309,88 @@ export default function Settings() {
                 Bank Accounts
               </CardTitle>
               {user?.subscription_plan !== 'starter' && (
-                <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="bg-[#006400] hover:bg-[#004d00] text-white rounded-xl" data-testid="link-bank-btn">
-                      <Link2 className="w-4 h-4 mr-2" />
-                      Link Bank
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Link Bank Account</DialogTitle>
-                    </DialogHeader>
-                    <form onSubmit={handleLinkBank} className="space-y-4">
-                      <div className="bg-[#E8F5E9] p-3 rounded-xl">
-                        <div className="flex items-center gap-2 text-[#006400]">
-                          <Shield className="w-4 h-4" />
-                          <span className="text-sm font-medium">Read-Only Access</span>
-                        </div>
-                        <p className="text-xs text-slate-600 mt-1">
-                          We can only view your transactions. We cannot move or access your funds.
-                        </p>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Bank</Label>
-                        <Select
-                          value={newBankAccount.bank_name}
-                          onValueChange={(v) => setNewBankAccount({ ...newBankAccount, bank_name: v })}
-                        >
-                          <SelectTrigger className="rounded-xl" data-testid="bank-select">
-                            <SelectValue placeholder="Select your bank" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {supportedBanks.map(bank => (
-                              <SelectItem key={bank} value={bank}>{bank}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Account Number</Label>
-                        <Input
-                          value={newBankAccount.account_number}
-                          onChange={(e) => setNewBankAccount({ ...newBankAccount, account_number: e.target.value })}
-                          placeholder="0123456789"
-                          maxLength={10}
-                          className="rounded-xl"
-                          required
-                          data-testid="account-number-input"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Account Name</Label>
-                        <Input
-                          value={newBankAccount.account_name}
-                          onChange={(e) => setNewBankAccount({ ...newBankAccount, account_name: e.target.value })}
-                          placeholder="John Doe"
-                          className="rounded-xl"
-                          required
-                          data-testid="account-name-input"
-                        />
-                      </div>
-
-                      <Button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full bg-[#006400] hover:bg-[#004d00] text-white rounded-xl"
-                        data-testid="submit-link-bank"
-                      >
-                        {loading ? 'Linking...' : 'Link Bank Account'}
-                      </Button>
-                    </form>
-                  </DialogContent>
-                </Dialog>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={handleMonoLinking}
+                    disabled={loading}
+                    className="bg-[#006400] hover:bg-[#004d00] text-white rounded-xl" 
+                    data-testid="link-bank-btn"
+                  >
+                    <Link2 className="w-4 h-4 mr-2" />
+                    {loading ? 'Connecting...' : 'Link Bank'}
+                  </Button>
+                </div>
               )}
             </div>
           </CardHeader>
+
+          {/* Mock Bank Dialog (fallback when Mono not configured) */}
+          <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Link Bank Account (Demo Mode)</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleLinkBank} className="space-y-4">
+                <div className="bg-[#FFF8E1] p-3 rounded-xl border border-[#FFE082]">
+                  <p className="text-xs text-[#6D4C41]">
+                    <strong>Note:</strong> This is a simulated bank linking for demo purposes. 
+                    Real Mono/Okra integration requires API keys.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Bank</Label>
+                  <Select
+                    value={newBankAccount.bank_name}
+                    onValueChange={(v) => setNewBankAccount({ ...newBankAccount, bank_name: v })}
+                  >
+                    <SelectTrigger className="rounded-xl" data-testid="bank-select">
+                      <SelectValue placeholder="Select your bank" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {supportedBanks.map(bank => (
+                        <SelectItem key={bank} value={bank}>{bank}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Account Number</Label>
+                  <Input
+                    value={newBankAccount.account_number}
+                    onChange={(e) => setNewBankAccount({ ...newBankAccount, account_number: e.target.value })}
+                    placeholder="0123456789"
+                    maxLength={10}
+                    className="rounded-xl"
+                    required
+                    data-testid="account-number-input"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Account Name</Label>
+                  <Input
+                    value={newBankAccount.account_name}
+                    onChange={(e) => setNewBankAccount({ ...newBankAccount, account_name: e.target.value })}
+                    placeholder="John Doe"
+                    className="rounded-xl"
+                    required
+                    data-testid="account-name-input"
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-[#006400] hover:bg-[#004d00] text-white rounded-xl"
+                  data-testid="submit-link-bank"
+                >
+                  {loading ? 'Linking...' : 'Link Bank Account (Demo)'}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+
           <CardContent>
             {user?.subscription_plan === 'starter' ? (
               <div className="text-center py-8 bg-slate-50 rounded-xl">

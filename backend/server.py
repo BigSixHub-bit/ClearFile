@@ -13,6 +13,9 @@ import bcrypt
 import jwt
 import secrets
 import requests
+import httpx
+import hmac
+import hashlib
 from datetime import datetime, timezone, timedelta
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from typing import List, Optional
@@ -32,6 +35,16 @@ db = client[os.environ['DB_NAME']]
 
 # JWT Configuration
 JWT_ALGORITHM = "HS256"
+
+# Paystack Configuration
+PAYSTACK_SECRET_KEY = os.environ.get("PAYSTACK_SECRET_KEY", "")
+PAYSTACK_PUBLIC_KEY = os.environ.get("PAYSTACK_PUBLIC_KEY", "")
+
+# Mono Configuration
+MONO_SECRET_KEY = os.environ.get("MONO_SECRET_KEY", "")
+MONO_PUBLIC_KEY = os.environ.get("MONO_PUBLIC_KEY", "")
+MONO_WEBHOOK_SECRET = os.environ.get("MONO_WEBHOOK_SECRET", "")
+MONO_API_BASE = "https://api.withmono.com/v2"
 
 def get_jwt_secret() -> str:
     return os.environ["JWT_SECRET"]
@@ -1123,6 +1136,512 @@ async def get_categories():
     return {
         "income": INCOME_CATEGORIES,
         "expense": EXPENSE_CATEGORIES
+    }
+
+# ========================
+# PAYSTACK PAYMENT INTEGRATION
+# ========================
+
+SUBSCRIPTION_PRICES = {
+    "starter": 200000,   # ₦2,000 in kobo
+    "growth": 400000,    # ₦4,000 in kobo
+    "business": 600000   # ₦6,000 in kobo
+}
+
+class PaymentInitRequest(BaseModel):
+    plan: str
+    callback_url: str
+
+@api_router.post("/subscription/initialize")
+async def initialize_payment(data: PaymentInitRequest, user: dict = Depends(get_current_user)):
+    """Initialize Paystack payment for subscription"""
+    if data.plan not in SUBSCRIPTION_PRICES:
+        raise HTTPException(status_code=400, detail="Invalid subscription plan")
+    
+    amount_kobo = SUBSCRIPTION_PRICES[data.plan]
+    reference = f"nairatrack_{uuid.uuid4().hex[:16]}"
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api.paystack.co/transaction/initialize",
+                headers={
+                    "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "email": user["email"],
+                    "amount": amount_kobo,
+                    "reference": reference,
+                    "callback_url": data.callback_url,
+                    "metadata": {
+                        "user_id": user["id"],
+                        "plan": data.plan,
+                        "custom_fields": [
+                            {"display_name": "Plan", "variable_name": "plan", "value": data.plan},
+                            {"display_name": "User", "variable_name": "user_email", "value": user["email"]}
+                        ]
+                    }
+                },
+                timeout=30.0
+            )
+            result = response.json()
+        
+        if result.get("status"):
+            # Store pending payment
+            await db.payments.insert_one({
+                "user_id": user["id"],
+                "reference": reference,
+                "plan": data.plan,
+                "amount": amount_kobo,
+                "status": "pending",
+                "created_at": datetime.now(timezone.utc).isoformat()
+            })
+            
+            return {
+                "authorization_url": result["data"]["authorization_url"],
+                "reference": result["data"]["reference"],
+                "access_code": result["data"]["access_code"]
+            }
+        
+        raise HTTPException(status_code=400, detail=result.get("message", "Payment initialization failed"))
+    except httpx.HTTPError as e:
+        logger.error(f"Paystack error: {e}")
+        raise HTTPException(status_code=500, detail="Payment service unavailable")
+
+@api_router.get("/subscription/verify/{reference}")
+async def verify_payment(reference: str, user: dict = Depends(get_current_user)):
+    """Verify Paystack payment and activate subscription"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"https://api.paystack.co/transaction/verify/{reference}",
+                headers={"Authorization": f"Bearer {PAYSTACK_SECRET_KEY}"},
+                timeout=30.0
+            )
+            result = response.json()
+        
+        if result.get("status") and result["data"]["status"] == "success":
+            # Get plan from payment record or metadata
+            payment = await db.payments.find_one({"reference": reference})
+            plan = payment["plan"] if payment else result["data"]["metadata"].get("plan", "starter")
+            
+            # Update user subscription
+            await db.users.update_one(
+                {"_id": ObjectId(user["id"])},
+                {"$set": {"subscription_plan": plan}}
+            )
+            
+            # Update payment status
+            await db.payments.update_one(
+                {"reference": reference},
+                {"$set": {"status": "success", "verified_at": datetime.now(timezone.utc).isoformat()}}
+            )
+            
+            logger.info(f"Subscription activated: {user['email']} -> {plan}")
+            
+            return {"status": "success", "plan": plan, "data": result["data"]}
+        
+        return {"status": "failed", "message": result.get("message", "Payment verification failed")}
+    except httpx.HTTPError as e:
+        logger.error(f"Paystack verify error: {e}")
+        raise HTTPException(status_code=500, detail="Payment verification failed")
+
+@api_router.post("/subscription/webhook")
+async def paystack_webhook(request: Request):
+    """Handle Paystack webhook events"""
+    signature = request.headers.get("x-paystack-signature")
+    body = await request.body()
+    
+    # Verify signature
+    if PAYSTACK_SECRET_KEY:
+        computed_signature = hmac.new(
+            PAYSTACK_SECRET_KEY.encode('utf-8'),
+            body,
+            hashlib.sha512
+        ).hexdigest()
+        
+        if signature and not hmac.compare_digest(computed_signature, signature):
+            raise HTTPException(status_code=401, detail="Invalid signature")
+    
+    event = await request.json()
+    event_type = event.get("event")
+    
+    if event_type == "charge.success":
+        data = event["data"]
+        reference = data["reference"]
+        
+        # Update payment and subscription
+        payment = await db.payments.find_one({"reference": reference})
+        if payment:
+            await db.users.update_one(
+                {"_id": ObjectId(payment["user_id"])},
+                {"$set": {"subscription_plan": payment["plan"]}}
+            )
+            await db.payments.update_one(
+                {"reference": reference},
+                {"$set": {"status": "success", "webhook_verified": True}}
+            )
+            logger.info(f"Webhook: Subscription activated via webhook for {reference}")
+    
+    return {"status": "ok"}
+
+@api_router.get("/subscription/plans")
+async def get_subscription_plans():
+    """Get available subscription plans with pricing"""
+    return {
+        "plans": [
+            {
+                "id": "starter",
+                "name": "Starter",
+                "price": 2000,
+                "price_display": "₦2,000",
+                "features": [
+                    "Manual expense tracking",
+                    "Basic tax estimate",
+                    "Filing reminders",
+                    "Receipt scanner (10/month)",
+                    "Up to 50 transactions/month"
+                ],
+                "bank_linking": False
+            },
+            {
+                "id": "growth",
+                "name": "Growth",
+                "price": 4000,
+                "price_display": "₦4,000",
+                "features": [
+                    "Everything in Starter",
+                    "Bank account linking (2 accounts)",
+                    "Auto-categorization",
+                    "AI spending organizer",
+                    "VAT & WHT tracking",
+                    "Up to 300 transactions/month"
+                ],
+                "bank_linking": True,
+                "popular": True
+            },
+            {
+                "id": "business",
+                "name": "Business",
+                "price": 6000,
+                "price_display": "₦6,000",
+                "features": [
+                    "Everything in Growth",
+                    "Unlimited bank accounts",
+                    "Unlimited transactions",
+                    "PDF/Excel export",
+                    "Multi-user access",
+                    "Priority support",
+                    "Full AI tax assistant"
+                ],
+                "bank_linking": True
+            }
+        ],
+        "paystack_public_key": PAYSTACK_PUBLIC_KEY
+    }
+
+# ========================
+# MONO BANK LINKING INTEGRATION
+# ========================
+
+class MonoLinkRequest(BaseModel):
+    institution_id: Optional[str] = None
+
+@api_router.post("/mono/initiate-linking")
+async def initiate_mono_linking(data: MonoLinkRequest, user: dict = Depends(get_current_user)):
+    """Initialize Mono Connect for bank account linking"""
+    if user.get("subscription_plan") == "starter":
+        raise HTTPException(status_code=403, detail="Bank linking requires Growth or Business plan")
+    
+    if not MONO_SECRET_KEY:
+        # Return mock data if Mono not configured
+        return {
+            "mode": "mock",
+            "message": "Mono integration not configured. Using mock bank linking.",
+            "mock_url": None
+        }
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            payload = {
+                "customer": user.get("mono_customer_id") or user["id"],
+                "meta": {
+                    "user_id": user["id"],
+                    "email": user["email"]
+                },
+                "scope": "auth",
+                "redirect_url": os.environ.get("FRONTEND_URL", "http://localhost:3000") + "/settings?bank_linked=true"
+            }
+            
+            if data.institution_id:
+                payload["institution"] = data.institution_id
+            
+            response = await client.post(
+                f"{MONO_API_BASE}/accounts/initiate",
+                headers={
+                    "mono-sec-key": MONO_SECRET_KEY,
+                    "Content-Type": "application/json"
+                },
+                json=payload,
+                timeout=30.0
+            )
+            result = response.json()
+        
+        if result.get("status") == "successful":
+            return {
+                "mode": "live",
+                "mono_url": result["data"]["mono_url"],
+                "session_id": result["data"].get("id")
+            }
+        
+        raise HTTPException(status_code=400, detail=result.get("message", "Failed to initiate bank linking"))
+    except httpx.HTTPError as e:
+        logger.error(f"Mono initiate error: {e}")
+        # Fallback to mock mode
+        return {
+            "mode": "mock",
+            "message": "Bank linking service unavailable. Using simulated mode.",
+            "mock_url": None
+        }
+
+@api_router.post("/mono/exchange-token")
+async def exchange_mono_token(request: Request, user: dict = Depends(get_current_user)):
+    """Exchange Mono code for account ID after successful linking"""
+    data = await request.json()
+    code = data.get("code")
+    
+    if not code:
+        raise HTTPException(status_code=400, detail="Authorization code required")
+    
+    if not MONO_SECRET_KEY:
+        raise HTTPException(status_code=400, detail="Mono not configured")
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{MONO_API_BASE}/accounts/auth",
+                headers={
+                    "mono-sec-key": MONO_SECRET_KEY,
+                    "Content-Type": "application/json"
+                },
+                json={"code": code},
+                timeout=30.0
+            )
+            result = response.json()
+        
+        if result.get("status") == "successful":
+            account_id = result["data"]["id"]
+            
+            # Store linked account
+            account_doc = {
+                "user_id": user["id"],
+                "mono_account_id": account_id,
+                "bank_name": result["data"].get("institution", {}).get("name", "Unknown"),
+                "account_number": result["data"].get("account_number", "****"),
+                "account_name": result["data"].get("name", user["name"]),
+                "balance": result["data"].get("balance", 0) / 100,  # Convert from kobo
+                "linked": True,
+                "data_status": result["data"].get("meta", {}).get("data_status", "processing"),
+                "last_synced": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            
+            await db.bank_accounts.insert_one(account_doc)
+            
+            logger.info(f"Mono account linked for user {user['email']}: {account_id}")
+            
+            return {
+                "status": "success",
+                "account_id": account_id,
+                "bank_name": account_doc["bank_name"]
+            }
+        
+        raise HTTPException(status_code=400, detail=result.get("message", "Token exchange failed"))
+    except httpx.HTTPError as e:
+        logger.error(f"Mono token exchange error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to link bank account")
+
+@api_router.get("/mono/account/{account_id}/transactions")
+async def get_mono_transactions(account_id: str, user: dict = Depends(get_current_user)):
+    """Fetch transactions from Mono-linked bank account"""
+    # Verify account belongs to user
+    account = await db.bank_accounts.find_one({
+        "mono_account_id": account_id,
+        "user_id": user["id"]
+    })
+    
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    if not MONO_SECRET_KEY:
+        raise HTTPException(status_code=400, detail="Mono not configured")
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{MONO_API_BASE}/accounts/{account_id}/transactions",
+                headers={
+                    "mono-sec-key": MONO_SECRET_KEY,
+                    "x-real-time": "true"
+                },
+                params={"paginate": False},
+                timeout=30.0
+            )
+            result = response.json()
+        
+        if result.get("status") == "successful":
+            transactions = result.get("data", [])
+            
+            # Import transactions into our system
+            for tx in transactions:
+                existing = await db.transactions.find_one({
+                    "mono_transaction_id": tx.get("_id")
+                })
+                
+                if not existing:
+                    tx_doc = {
+                        "id": str(uuid.uuid4()),
+                        "user_id": user["id"],
+                        "bank_account_id": account_id,
+                        "mono_transaction_id": tx.get("_id"),
+                        "amount": abs(tx.get("amount", 0)) / 100,
+                        "type": "income" if tx.get("type") == "credit" else "expense",
+                        "category": categorize_transaction(tx.get("narration", "")),
+                        "description": tx.get("narration", "Bank transaction"),
+                        "date": tx.get("date", datetime.now(timezone.utc).isoformat()),
+                        "is_recurring": False,
+                        "ai_categorized": True,
+                        "flagged": False,
+                        "created_at": datetime.now(timezone.utc).isoformat()
+                    }
+                    await db.transactions.insert_one(tx_doc)
+            
+            return {
+                "status": "success",
+                "transactions_count": len(transactions),
+                "imported": True
+            }
+        
+        return {"status": "failed", "message": result.get("message")}
+    except httpx.HTTPError as e:
+        logger.error(f"Mono transactions error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch transactions")
+
+@api_router.get("/mono/account/{account_id}/balance")
+async def get_mono_balance(account_id: str, user: dict = Depends(get_current_user)):
+    """Get real-time balance from Mono-linked account"""
+    account = await db.bank_accounts.find_one({
+        "mono_account_id": account_id,
+        "user_id": user["id"]
+    })
+    
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    if not MONO_SECRET_KEY:
+        # Return cached balance
+        return {"balance": account.get("balance", 0), "real_time": False}
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{MONO_API_BASE}/accounts/{account_id}/balance",
+                headers={
+                    "mono-sec-key": MONO_SECRET_KEY,
+                    "x-real-time": "true"
+                },
+                timeout=30.0
+            )
+            result = response.json()
+        
+        if result.get("status") == "successful":
+            balance = result["data"].get("balance", 0) / 100
+            
+            # Update cached balance
+            await db.bank_accounts.update_one(
+                {"mono_account_id": account_id},
+                {"$set": {"balance": balance, "last_synced": datetime.now(timezone.utc).isoformat()}}
+            )
+            
+            return {"balance": balance, "real_time": True}
+        
+        return {"balance": account.get("balance", 0), "real_time": False}
+    except httpx.HTTPError as e:
+        logger.error(f"Mono balance error: {e}")
+        return {"balance": account.get("balance", 0), "real_time": False}
+
+@api_router.post("/mono/webhook")
+async def mono_webhook(request: Request):
+    """Handle Mono webhook events"""
+    signature = request.headers.get("mono-webhook-secret")
+    body = await request.body()
+    
+    # Verify signature if configured
+    if MONO_WEBHOOK_SECRET and signature:
+        computed = hmac.new(
+            MONO_WEBHOOK_SECRET.encode(),
+            body,
+            hashlib.sha256
+        ).hexdigest()
+        
+        if not hmac.compare_digest(computed, signature):
+            raise HTTPException(status_code=401, detail="Invalid webhook signature")
+    
+    event = await request.json()
+    event_type = event.get("event")
+    data = event.get("data", {})
+    
+    logger.info(f"Mono webhook received: {event_type}")
+    
+    if event_type == "mono.events.account_connected":
+        account_id = data.get("id")
+        # Account connected successfully
+        await db.bank_accounts.update_one(
+            {"mono_account_id": account_id},
+            {"$set": {"data_status": "available"}}
+        )
+    
+    elif event_type == "mono.events.account_updated":
+        account_id = data.get("id")
+        data_status = data.get("meta", {}).get("data_status")
+        
+        await db.bank_accounts.update_one(
+            {"mono_account_id": account_id},
+            {"$set": {"data_status": data_status}}
+        )
+    
+    return {"status": "ok"}
+
+def categorize_transaction(narration: str) -> str:
+    """Simple rule-based transaction categorization"""
+    narration_lower = narration.lower()
+    
+    if any(word in narration_lower for word in ["salary", "wage", "pay"]):
+        return "Salaries"
+    elif any(word in narration_lower for word in ["rent", "housing", "accommodation"]):
+        return "Rent"
+    elif any(word in narration_lower for word in ["electricity", "phcn", "nepa", "water", "dstv", "gotv"]):
+        return "Utilities"
+    elif any(word in narration_lower for word in ["uber", "bolt", "taxi", "fuel", "petrol", "transport"]):
+        return "Transport"
+    elif any(word in narration_lower for word in ["google", "microsoft", "netflix", "spotify", "subscription"]):
+        return "Subscriptions"
+    elif any(word in narration_lower for word in ["facebook", "instagram", "ads", "marketing", "advert"]):
+        return "Marketing"
+    elif any(word in narration_lower for word in ["transfer", "credit", "received"]):
+        return "Transfers In"
+    elif any(word in narration_lower for word in ["pos", "atm", "withdrawal"]):
+        return "Miscellaneous"
+    else:
+        return "Miscellaneous"
+
+@api_router.get("/mono/config")
+async def get_mono_config():
+    """Get Mono configuration for frontend"""
+    return {
+        "public_key": MONO_PUBLIC_KEY,
+        "configured": bool(MONO_SECRET_KEY and MONO_PUBLIC_KEY)
     }
 
 # ========================
