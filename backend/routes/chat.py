@@ -68,4 +68,4 @@ async def get_chat_history(session_id: Optional[str] = None, user: dict = Depend
     query = {"user_id": user["id"]}
     if session_id:
         query["session_id"] = session_id
-    return await db.chat_history.find(query, {"_id": 0}).sort("created_at", -1).to_list(50)
+    return await db.chat_history.find(query, {"_id": 0}).sort("created_at", -1).limit(50).to_list(50)

@@ -41,6 +41,7 @@ async def get_transactions(
     limit: int = 100,
     user: dict = Depends(get_current_user)
 ):
+    limit = min(limit, 1000)
     query = {"user_id": user["id"]}
     if type:
         query["type"] = type

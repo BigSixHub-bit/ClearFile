@@ -80,6 +80,7 @@ async def startup():
     await db.users.create_index("email", unique=True)
     await db.login_attempts.create_index("identifier")
     await db.transactions.create_index([("user_id", 1), ("date", -1)])
+    await db.transactions.create_index([("user_id", 1), ("type", 1), ("date", -1)])
     await db.bank_accounts.create_index("user_id")
     await db.receipts.create_index("user_id")
     await db.chat_history.create_index([("user_id", 1), ("session_id", 1)])

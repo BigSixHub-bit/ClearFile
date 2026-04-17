@@ -14,14 +14,17 @@ async def get_dashboard(user: dict = Depends(get_current_user)):
     user_id = user["id"]
     now = datetime.now(timezone.utc)
 
-    all_user_transactions = await db.transactions.find({"user_id": user_id}, {"_id": 0}).sort("date", -1).limit(1000).to_list(1000)
+    all_user_transactions = await db.transactions.find(
+        {"user_id": user_id},
+        {"_id": 0, "amount": 1, "type": 1, "category": 1, "date": 1}
+    ).sort("date", -1).limit(1000).to_list(1000)
     transactions = all_user_transactions
 
     total_income = sum(tx["amount"] for tx in transactions if tx["type"] == "income")
     total_expenses = sum(tx["amount"] for tx in transactions if tx["type"] == "expense")
     net_income = total_income - total_expenses
 
-    bank_accounts = await db.bank_accounts.find({"user_id": user_id}, {"_id": 0}).to_list(10)
+    bank_accounts = await db.bank_accounts.find({"user_id": user_id}, {"_id": 0, "balance": 1}).to_list(10)
     total_bank_balance = sum(acc.get("balance", 0) for acc in bank_accounts)
 
     business_type = user.get("business_type", "freelancer")
@@ -82,7 +85,7 @@ async def calculate_taxes(user: dict = Depends(get_current_user)):
     transactions = await db.transactions.find({
         "user_id": user_id,
         "date": {"$gte": year_start.isoformat()}
-    }, {"_id": 0}).sort("date", -1).limit(1000).to_list(1000)
+    }, {"_id": 0, "amount": 1, "type": 1, "category": 1}).sort("date", -1).limit(1000).to_list(1000)
 
     gross_income = sum(tx["amount"] for tx in transactions if tx["type"] == "income")
     total_expenses = sum(tx["amount"] for tx in transactions if tx["type"] == "expense")

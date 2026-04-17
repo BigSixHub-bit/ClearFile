@@ -58,7 +58,7 @@ async def link_bank_account(account_data: BankAccountCreate, user: dict = Depend
 @router.get("/bank-accounts")
 async def get_bank_accounts(user: dict = Depends(get_current_user)):
     result = []
-    async for acc in db.bank_accounts.find({"user_id": user["id"]}):
+    async for acc in db.bank_accounts.find({"user_id": user["id"]}).limit(50):
         result.append({
             "id": str(acc["_id"]),
             "user_id": acc["user_id"],
