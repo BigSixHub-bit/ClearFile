@@ -1,17 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { 
   LayoutDashboard, Receipt, Calculator, FileText, BookOpen, 
-  Settings, MessageCircle, LogOut, Menu, X, Shield, Bell
+  Settings, MessageCircle, LogOut, Menu, Shield, Bell, BellRing
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Switch } from '../components/ui/switch';
 import { Sheet, SheetContent, SheetTrigger } from '../components/ui/sheet';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { Badge } from '../components/ui/badge';
+import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -22,17 +23,32 @@ export default function Layout({ children }) {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [browserNotifEnabled, setBrowserNotifEnabled] = useState(false);
 
   useEffect(() => {
     fetchNotifications();
     checkDeadlines();
+    // Check browser notification permission
+    if ('Notification' in window) {
+      setBrowserNotifEnabled(Notification.permission === 'granted');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchNotifications = async () => {
     try {
       const { data } = await axios.get(`${API}/api/notifications`, { withCredentials: true });
       setNotifications(data);
-      setUnreadCount(data.filter(n => !n.read).length);
+      const unread = data.filter(n => !n.read).length;
+      setUnreadCount(unread);
+
+      // Show browser notification for new unread items
+      if (unread > 0 && browserNotifEnabled && data.length > 0) {
+        const latest = data.find(n => !n.read);
+        if (latest) {
+          showBrowserNotification(latest.title, latest.message);
+        }
+      }
     } catch (error) {
       console.error('Failed to fetch notifications');
     }
@@ -57,9 +73,52 @@ export default function Layout({ children }) {
     }
   };
 
+  const enableBrowserNotifications = useCallback(async () => {
+    if (!('Notification' in window)) {
+      toast.error('Browser notifications not supported');
+      return;
+    }
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        setBrowserNotifEnabled(true);
+        toast.success('Browser notifications enabled!');
+      } else {
+        toast.info('Notification permission denied');
+      }
+    } catch (err) {
+      toast.error('Failed to enable notifications');
+    }
+  }, []);
+
+  const showBrowserNotification = (title, body) => {
+    if (browserNotifEnabled && 'Notification' in window && Notification.permission === 'granted') {
+      try {
+        new Notification(title, {
+          body,
+          icon: '/favicon.ico',
+          badge: '/favicon.ico',
+          tag: 'nairatrack-notification'
+        });
+      } catch (e) {
+        // Silently fail for environments that don't support Notification constructor
+      }
+    }
+  };
+
   const handleLogout = async () => {
     await logout();
     navigate('/');
+  };
+
+  const getTimeAgo = (dateStr) => {
+    if (!dateStr) return '';
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
   };
 
   const navItems = [
@@ -73,8 +132,7 @@ export default function Layout({ children }) {
   ];
 
   const NavContent = ({ mobile = false }) => (
-    <div className={`flex flex-col h-full ${mobile ? '' : ''}`}>
-      {/* Logo */}
+    <div className={`flex flex-col h-full`}>
       <div className="p-4 border-b border-slate-200">
         <div className="flex items-center gap-2">
           <div className="w-10 h-10 bg-[#006400] rounded-xl flex items-center justify-center">
@@ -84,7 +142,6 @@ export default function Layout({ children }) {
         </div>
       </div>
 
-      {/* Nav Links */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         {navItems.map(item => (
           <NavLink
@@ -106,9 +163,7 @@ export default function Layout({ children }) {
         ))}
       </nav>
 
-      {/* Bottom Section */}
       <div className="p-4 border-t border-slate-200 space-y-4">
-        {/* Pidgin Toggle */}
         <div className="flex items-center justify-between px-4 py-2">
           <span className="text-sm text-slate-600">Pidgin / EN</span>
           <Switch
@@ -118,14 +173,12 @@ export default function Layout({ children }) {
           />
         </div>
 
-        {/* User Info */}
         <div className="bg-[#E8F5E9] rounded-xl p-3">
           <p className="font-medium text-[#022c22] truncate">{user?.name}</p>
           <p className="text-xs text-slate-500 truncate">{user?.email}</p>
           <p className="text-xs text-[#006400] font-medium mt-1 capitalize">{user?.subscription_plan} Plan</p>
         </div>
 
-        {/* Logout */}
         <Button
           variant="ghost"
           onClick={handleLogout}
@@ -141,12 +194,10 @@ export default function Layout({ children }) {
 
   return (
     <div className="min-h-screen bg-[#FAFAFA]">
-      {/* Desktop Sidebar */}
       <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-slate-200 flex-col z-40">
         <NavContent />
       </aside>
 
-      {/* Mobile Header */}
       <header className="lg:hidden fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-b border-slate-200 z-50">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
@@ -156,7 +207,6 @@ export default function Layout({ children }) {
             <span className="font-bold text-[#022c22]" style={{ fontFamily: 'Outfit' }}>NairaTrack</span>
           </div>
           <div className="flex items-center gap-2">
-            {/* Notifications */}
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative" data-testid="notifications-btn">
@@ -170,20 +220,31 @@ export default function Layout({ children }) {
               </PopoverTrigger>
               <PopoverContent className="w-80 p-0" align="end">
                 <div className="p-3 border-b border-slate-200 flex items-center justify-between">
-                  <h4 className="font-semibold text-[#022c22]">Notifications</h4>
-                  {unreadCount > 0 && (
-                    <Button variant="ghost" size="sm" onClick={markAsRead} className="text-xs">
-                      Mark all read
-                    </Button>
-                  )}
+                  <h4 className="font-semibold text-[#022c22]">{t('notifications')}</h4>
+                  <div className="flex items-center gap-2">
+                    {!browserNotifEnabled && (
+                      <Button variant="ghost" size="sm" onClick={enableBrowserNotifications} className="text-xs" data-testid="enable-browser-notif">
+                        <BellRing className="w-3 h-3 mr-1" />
+                        Enable
+                      </Button>
+                    )}
+                    {unreadCount > 0 && (
+                      <Button variant="ghost" size="sm" onClick={markAsRead} className="text-xs" data-testid="mark-all-read-btn">
+                        {t('markAllRead')}
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div className="max-h-64 overflow-y-auto">
                   {notifications.length === 0 ? (
-                    <p className="p-4 text-center text-slate-400 text-sm">No notifications</p>
+                    <p className="p-4 text-center text-slate-400 text-sm">{t('noNotifications')}</p>
                   ) : (
-                    notifications.slice(0, 5).map((notif, idx) => (
+                    notifications.slice(0, 8).map((notif, idx) => (
                       <div key={notif.id || idx} className={`p-3 border-b border-slate-100 ${!notif.read ? 'bg-[#E8F5E9]' : ''}`}>
-                        <p className="font-medium text-sm text-[#022c22]">{notif.title}</p>
+                        <div className="flex items-start justify-between">
+                          <p className="font-medium text-sm text-[#022c22]">{notif.title}</p>
+                          <span className="text-[10px] text-slate-400 whitespace-nowrap ml-2">{getTimeAgo(notif.created_at)}</span>
+                        </div>
                         <p className="text-xs text-slate-500 mt-1">{notif.message}</p>
                       </div>
                     ))
@@ -205,7 +266,6 @@ export default function Layout({ children }) {
         </div>
       </header>
 
-      {/* Security Banner */}
       <div className="lg:ml-64 bg-[#006400] text-white text-center py-2 text-sm lg:text-base">
         <div className="flex items-center justify-center gap-2">
           <Shield className="w-4 h-4 text-[#FFD700]" />
@@ -213,14 +273,12 @@ export default function Layout({ children }) {
         </div>
       </div>
 
-      {/* Main Content */}
       <main className="lg:ml-64 pt-16 lg:pt-0 min-h-screen">
         <div className="p-4 lg:p-8">
           {children}
         </div>
       </main>
 
-      {/* Mobile Bottom Nav */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-slate-200 z-50 mobile-nav">
         <div className="flex justify-around py-2">
           {navItems.slice(0, 5).map(item => (

@@ -254,7 +254,7 @@ export default function Settings() {
           <h1 className="text-2xl sm:text-3xl font-bold text-[#022c22]" style={{ fontFamily: 'Outfit' }}>
             {t('settings')}
           </h1>
-          <p className="text-slate-500">Manage your account and preferences</p>
+          <p className="text-slate-500">{t('manageAccount')}</p>
         </div>
 
         {/* Profile */}
@@ -486,7 +486,7 @@ export default function Settings() {
         {/* Preferences */}
         <Card className="rounded-2xl border-slate-200">
           <CardHeader>
-            <CardTitle className="text-lg" style={{ fontFamily: 'Outfit' }}>Preferences</CardTitle>
+            <CardTitle className="text-lg" style={{ fontFamily: 'Outfit' }}>{t('preferences')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
@@ -494,7 +494,7 @@ export default function Settings() {
                 <Moon className="w-5 h-5 text-slate-600" />
                 <div>
                   <p className="font-medium text-[#022c22]">{t('darkMode')}</p>
-                  <p className="text-sm text-slate-500">Switch to dark theme</p>
+                  <p className="text-sm text-slate-500">{t('darkModeDesc')}</p>
                 </div>
               </div>
               <Switch
@@ -509,7 +509,7 @@ export default function Settings() {
                 <Languages className="w-5 h-5 text-slate-600" />
                 <div>
                   <p className="font-medium text-[#022c22]">{t('pidginMode')}</p>
-                  <p className="text-sm text-slate-500">Switch to Pidgin English</p>
+                  <p className="text-sm text-slate-500">{t('pidginModeDesc')}</p>
                 </div>
               </div>
               <Switch
@@ -529,7 +529,7 @@ export default function Settings() {
                 <FileDown className="w-5 h-5 text-[#006400]" />
                 Export Data
               </CardTitle>
-              <CardDescription>Download your financial data as CSV or JSON</CardDescription>
+              <CardDescription>{t('exportDesc')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -575,7 +575,7 @@ export default function Settings() {
                 <Users className="w-5 h-5 text-[#006400]" />
                 Team Access
               </CardTitle>
-              <CardDescription>Invite your accountant or team members to view your data</CardDescription>
+              <CardDescription>{t('teamDesc')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex gap-2">
@@ -639,9 +639,9 @@ export default function Settings() {
                 <Shield className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="font-bold text-[#006400]">Bank-Level Security</h3>
+                <h3 className="font-bold text-[#006400]">{t('bankSecurity')}</h3>
                 <p className="text-sm text-slate-600">
-                  Your data is protected with 256-bit encryption. We only have read-only access to your bank accounts.
+                  {t('bankSecurityDesc')}
                 </p>
               </div>
             </div>

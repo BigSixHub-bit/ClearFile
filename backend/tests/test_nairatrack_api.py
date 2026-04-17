@@ -572,5 +572,81 @@ class TestReceipts:
         print(f"✅ Receipts: {len(data)} items")
 
 
+# ========================
+# NEW INSIGHTS TESTS (Recurring Expenses + Smart Spending)
+# ========================
+
+class TestInsights:
+    """Insights endpoints tests - NEW FEATURES"""
+    
+    def test_recurring_expenses(self, admin_session):
+        """Test recurring expense detection endpoint"""
+        response = admin_session.get(f"{BASE_URL}/api/insights/recurring")
+        assert response.status_code == 200
+        data = response.json()
+        
+        # Verify response structure
+        assert "recurring" in data, "Missing 'recurring' field"
+        assert "total_monthly_recurring" in data, "Missing 'total_monthly_recurring' field"
+        assert isinstance(data["recurring"], list)
+        assert isinstance(data["total_monthly_recurring"], (int, float))
+        
+        # If there are recurring items, verify their structure
+        if len(data["recurring"]) > 0:
+            item = data["recurring"][0]
+            assert "category" in item
+            assert "amount" in item
+            assert "frequency" in item
+            assert "occurrences" in item
+            assert "estimated_monthly" in item
+        
+        print(f"✅ Recurring expenses: {len(data['recurring'])} detected, Total monthly: ₦{data['total_monthly_recurring']:,.0f}")
+    
+    def test_spending_insights(self, admin_session):
+        """Test AI-powered spending insights endpoint"""
+        response = admin_session.get(f"{BASE_URL}/api/insights/spending")
+        assert response.status_code == 200
+        data = response.json()
+        
+        # Verify response structure
+        assert "insights" in data, "Missing 'insights' field"
+        assert "summary" in data, "Missing 'summary' field"
+        assert isinstance(data["insights"], list)
+        assert isinstance(data["summary"], dict)
+        
+        # If there are insights, verify their structure
+        if len(data["insights"]) > 0:
+            insight = data["insights"][0]
+            assert "type" in insight
+            assert "title" in insight
+            assert "message" in insight
+            assert insight["type"] in ["info", "warning", "success", "ai"]
+        
+        # Verify summary fields if present
+        if data["summary"]:
+            expected_summary_fields = ["total_income", "total_expenses", "savings_rate", "transaction_count"]
+            for field in expected_summary_fields:
+                if field in data["summary"]:
+                    assert isinstance(data["summary"][field], (int, float, type(None)))
+        
+        print(f"✅ Spending insights: {len(data['insights'])} insights generated")
+    
+    def test_insights_require_auth(self):
+        """Test that insights endpoints require authentication"""
+        # Use a fresh session without any cookies
+        fresh_session = requests.Session()
+        fresh_session.headers.update({"Content-Type": "application/json"})
+        
+        # Test recurring endpoint without auth
+        response1 = fresh_session.get(f"{BASE_URL}/api/insights/recurring")
+        assert response1.status_code == 401, f"Recurring endpoint should require auth, got {response1.status_code}"
+        
+        # Test spending endpoint without auth
+        response2 = fresh_session.get(f"{BASE_URL}/api/insights/spending")
+        assert response2.status_code == 401, f"Spending endpoint should require auth, got {response2.status_code}"
+        
+        print("✅ Insights endpoints correctly require authentication")
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

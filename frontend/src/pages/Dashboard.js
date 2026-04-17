@@ -4,26 +4,47 @@ import axios from 'axios';
 import Layout from '../components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { Progress } from '../components/ui/progress';
+import { Badge } from '../components/ui/badge';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { toast } from 'sonner';
 import { 
   TrendingUp, TrendingDown, Calculator, Wallet, PlusCircle, 
-  Camera, FileText, Link2, AlertTriangle, Calendar, ArrowRight
+  Camera, FileText, Link2, AlertTriangle, Calendar, ArrowRight,
+  Lightbulb, RefreshCw, Sparkles, Repeat, Info, CheckCircle, AlertCircle
 } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 const API = process.env.REACT_APP_BACKEND_URL;
+
+const InsightIcon = ({ type }) => {
+  switch (type) {
+    case 'warning': return <AlertCircle className="w-5 h-5 text-amber-500" />;
+    case 'success': return <CheckCircle className="w-5 h-5 text-[#006400]" />;
+    case 'ai': return <Sparkles className="w-5 h-5 text-purple-500" />;
+    default: return <Info className="w-5 h-5 text-blue-500" />;
+  }
+};
+
+const insightBg = {
+  warning: 'bg-amber-50 border-amber-200',
+  success: 'bg-[#E8F5E9] border-[#A5D6A7]',
+  ai: 'bg-purple-50 border-purple-200',
+  info: 'bg-blue-50 border-blue-200',
+};
 
 export default function Dashboard() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const [dashboard, setDashboard] = useState(null);
+  const [insights, setInsights] = useState([]);
+  const [recurring, setRecurring] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchDashboard();
+    fetchInsights();
+    fetchRecurring();
   }, []);
 
   const fetchDashboard = async () => {
@@ -34,6 +55,24 @@ export default function Dashboard() {
       toast.error('Failed to load dashboard');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchInsights = async () => {
+    try {
+      const { data } = await axios.get(`${API}/api/insights/spending`, { withCredentials: true });
+      setInsights(data.insights || []);
+    } catch (error) {
+      console.error('Failed to load insights');
+    }
+  };
+
+  const fetchRecurring = async () => {
+    try {
+      const { data } = await axios.get(`${API}/api/insights/recurring`, { withCredentials: true });
+      setRecurring(data.recurring || []);
+    } catch (error) {
+      console.error('Failed to load recurring');
     }
   };
 
@@ -76,7 +115,7 @@ export default function Dashboard() {
             <h1 className="text-2xl sm:text-3xl font-bold text-[#022c22]" style={{ fontFamily: 'Outfit' }}>
               {t('dashboard')}
             </h1>
-            <p className="text-slate-500">Welcome back, {user?.name?.split(' ')[0]}!</p>
+            <p className="text-slate-500">{t('welcomeBack')}, {user?.name?.split(' ')[0]}!</p>
           </div>
           <div className="flex gap-2 flex-wrap">
             <Link to="/transactions">
@@ -96,7 +135,6 @@ export default function Dashboard() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Total Income */}
           <Card className="rounded-2xl border-slate-200 hover-lift" data-testid="total-income-card">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-2">
@@ -108,11 +146,10 @@ export default function Dashboard() {
               <p className="text-2xl font-bold text-[#006400]" data-testid="total-income-value">
                 {formatCurrency(dashboard?.total_income || 0)}
               </p>
-              <p className="text-xs text-slate-400 mt-1">All time</p>
+              <p className="text-xs text-slate-400 mt-1">{t('allTime')}</p>
             </CardContent>
           </Card>
 
-          {/* Total Expenses */}
           <Card className="rounded-2xl border-slate-200 hover-lift" data-testid="total-expenses-card">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-2">
@@ -124,11 +161,10 @@ export default function Dashboard() {
               <p className="text-2xl font-bold text-red-500" data-testid="total-expenses-value">
                 {formatCurrency(dashboard?.total_expenses || 0)}
               </p>
-              <p className="text-xs text-slate-400 mt-1">All time</p>
+              <p className="text-xs text-slate-400 mt-1">{t('allTime')}</p>
             </CardContent>
           </Card>
 
-          {/* Estimated Tax */}
           <Card className="rounded-2xl border-slate-200 hover-lift" data-testid="estimated-tax-card">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-2">
@@ -140,11 +176,10 @@ export default function Dashboard() {
               <p className="text-2xl font-bold text-[#422006]" data-testid="estimated-tax-value">
                 {formatCurrency(dashboard?.estimated_tax || 0)}
               </p>
-              <p className="text-xs text-slate-400 mt-1">Income Tax + VAT: {formatCurrency(dashboard?.vat_owed || 0)}</p>
+              <p className="text-xs text-slate-400 mt-1">{t('incomeTaxVat')}: {formatCurrency(dashboard?.vat_owed || 0)}</p>
             </CardContent>
           </Card>
 
-          {/* Bank Balance */}
           <Card className="rounded-2xl border-slate-200 hover-lift" data-testid="bank-balance-card">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-2">
@@ -156,14 +191,56 @@ export default function Dashboard() {
               <p className="text-2xl font-bold text-blue-600" data-testid="bank-balance-value">
                 {formatCurrency(dashboard?.total_bank_balance || 0)}
               </p>
-              <p className="text-xs text-slate-400 mt-1">{dashboard?.bank_accounts_count || 0} accounts linked</p>
+              <p className="text-xs text-slate-400 mt-1">{dashboard?.bank_accounts_count || 0} {t('accountsLinked')}</p>
             </CardContent>
           </Card>
         </div>
 
+        {/* Smart Insights */}
+        {insights.length > 0 && (
+          <Card className="rounded-2xl border-slate-200" data-testid="smart-insights-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2" style={{ fontFamily: 'Outfit' }}>
+                <Lightbulb className="w-5 h-5 text-[#FFD700]" />
+                {t('smartInsights')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {insights.slice(0, 4).map((insight, idx) => (
+                  <div
+                    key={idx}
+                    className={`p-4 rounded-xl border ${insightBg[insight.type] || insightBg.info}`}
+                    data-testid={`insight-${idx}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <InsightIcon type={insight.type} />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm text-[#022c22]">{insight.title}</p>
+                        <p className="text-xs text-slate-600 mt-1 leading-relaxed">{insight.message}</p>
+                        {insight.action && (
+                          <Link to={
+                            insight.action === 'View Transactions' ? '/transactions' :
+                            insight.action === 'View Tax Calculator' ? '/tax-calculator' :
+                            insight.action === 'Chat with Assistant' ? '/chat' :
+                            '/transactions'
+                          }>
+                            <Button variant="link" className="h-auto p-0 mt-2 text-xs text-[#006400] font-medium">
+                              {insight.action} <ArrowRight className="w-3 h-3 ml-1" />
+                            </Button>
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Tax Health Score & Spending Breakdown */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Tax Health Score */}
           <Card className="rounded-2xl border-slate-200" data-testid="tax-health-score-card">
             <CardHeader>
               <CardTitle className="text-lg" style={{ fontFamily: 'Outfit' }}>{t('taxHealthScore')}</CardTitle>
@@ -171,19 +248,9 @@ export default function Dashboard() {
             <CardContent className="flex flex-col items-center pb-6">
               <div className="relative w-40 h-40 mb-4">
                 <svg className="w-full h-full transform -rotate-90">
+                  <circle cx="80" cy="80" r="70" fill="none" stroke="#e2e8f0" strokeWidth="12" />
                   <circle
-                    cx="80"
-                    cy="80"
-                    r="70"
-                    fill="none"
-                    stroke="#e2e8f0"
-                    strokeWidth="12"
-                  />
-                  <circle
-                    cx="80"
-                    cy="80"
-                    r="70"
-                    fill="none"
+                    cx="80" cy="80" r="70" fill="none"
                     stroke={getHealthScoreColor(dashboard?.tax_health_score || 0)}
                     strokeWidth="12"
                     strokeDasharray={440}
@@ -204,15 +271,14 @@ export default function Dashboard() {
               </div>
               <p className="text-center text-slate-600 text-sm">
                 {dashboard?.tax_health_score >= 80 
-                  ? 'Excellent! Your finances are well organized.' 
+                  ? t('healthExcellent')
                   : dashboard?.tax_health_score >= 50
-                  ? 'Good progress! Keep tracking your expenses.'
-                  : 'Link your bank and track more transactions to improve.'}
+                  ? t('healthGood')
+                  : t('healthLow')}
               </p>
             </CardContent>
           </Card>
 
-          {/* Spending Breakdown */}
           <Card className="rounded-2xl border-slate-200 lg:col-span-2" data-testid="spending-breakdown-card">
             <CardHeader>
               <CardTitle className="text-lg" style={{ fontFamily: 'Outfit' }}>{t('spendingBreakdown')}</CardTitle>
@@ -254,19 +320,56 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="h-64 flex items-center justify-center text-slate-400">
-                  <p>No expenses tracked yet</p>
+                  <p>{t('noExpenses')}</p>
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
 
+        {/* Recurring Expenses */}
+        {recurring.length > 0 && (
+          <Card className="rounded-2xl border-slate-200" data-testid="recurring-expenses-card">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2" style={{ fontFamily: 'Outfit' }}>
+                  <Repeat className="w-5 h-5 text-[#006400]" />
+                  {t('recurringExpenses')}
+                </CardTitle>
+                <Badge variant="outline" className="text-[#006400] border-[#006400]">
+                  {formatCurrency(recurring.reduce((a, r) => a + r.estimated_monthly, 0))}{t('perMonth')}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {recurring.slice(0, 5).map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl" data-testid={`recurring-${idx}`}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-[#E8F5E9] rounded-lg flex items-center justify-center">
+                        <RefreshCw className="w-4 h-4 text-[#006400]" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm text-[#022c22]">{item.descriptions?.[0] || item.category}</p>
+                        <p className="text-xs text-slate-500">{item.frequency} &middot; {item.occurrences} {t('occurrences')}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-sm text-[#022c22]">{formatCurrency(item.amount)}</p>
+                      <p className="text-xs text-slate-400">{item.frequency === 'Monthly' ? 'per month' : item.frequency.toLowerCase()}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Quick Actions & Alerts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Quick Actions */}
           <Card className="rounded-2xl border-slate-200">
             <CardHeader>
-              <CardTitle className="text-lg" style={{ fontFamily: 'Outfit' }}>Quick Actions</CardTitle>
+              <CardTitle className="text-lg" style={{ fontFamily: 'Outfit' }}>{t('quickActions')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <Link to="/transactions" className="block">
@@ -292,7 +395,6 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Upcoming Deadlines & Flagged */}
           <Card className="rounded-2xl border-slate-200">
             <CardHeader>
               <CardTitle className="text-lg" style={{ fontFamily: 'Outfit' }}>{t('upcomingDeadlines')}</CardTitle>

@@ -4,6 +4,7 @@ const LanguageContext = createContext(null);
 
 const translations = {
   en: {
+    // Navigation
     welcome: "Welcome to NairaTrack",
     tagline: "Your trusted partner for Nigerian tax and expense management",
     dashboard: "Dashboard",
@@ -12,6 +13,9 @@ const translations = {
     taxGuide: "Tax Guide",
     education: "Learn",
     settings: "Settings",
+    chatAssistant: "Tax Assistant",
+    
+    // Dashboard
     linkBank: "Link Bank",
     addIncome: "Add Income",
     addExpense: "Add Expense",
@@ -25,7 +29,34 @@ const translations = {
     spendingBreakdown: "Spending Breakdown",
     flaggedTransactions: "Flagged Transactions",
     upcomingDeadlines: "Upcoming Deadlines",
-    securityBadge: "Read-Only Access — We Cannot Move Your Money",
+    quickActions: "Quick Actions",
+    welcomeBack: "Welcome back",
+    allTime: "All time",
+    accountsLinked: "accounts linked",
+    incomeTaxVat: "Income Tax + VAT",
+    healthExcellent: "Excellent! Your finances are well organized.",
+    healthGood: "Good progress! Keep tracking your expenses.",
+    healthLow: "Link your bank and track more transactions to improve.",
+    noExpenses: "No expenses tracked yet",
+    
+    // Insights
+    smartInsights: "Smart Insights",
+    recurringExpenses: "Recurring Expenses",
+    monthlyRecurring: "Monthly Recurring",
+    frequency: "Frequency",
+    occurrences: "occurrences",
+    noRecurring: "No recurring expenses detected yet",
+    noInsights: "Add transactions to get spending insights",
+    viewAll: "View All",
+    
+    // Transactions page
+    addTransaction: "Add Transaction",
+    recentTransactions: "Recent Transactions",
+    noTransactions: "No transactions yet. Add your first one!",
+    confirmDelete: "Delete this transaction?",
+    
+    // Auth
+    securityBadge: "Read-Only Access -- We Cannot Move Your Money",
     login: "Login",
     register: "Register",
     logout: "Logout",
@@ -39,10 +70,11 @@ const translations = {
     monthlyIncome: "Monthly Income Range",
     getStarted: "Get Started Free",
     startTrial: "Start 7-Day Free Trial",
-    chatAssistant: "Tax Assistant",
-    askQuestion: "Ask me anything about Nigerian taxes...",
     noAccount: "Don't have an account?",
     haveAccount: "Already have an account?",
+    forgotPassword: "Forgot password?",
+    
+    // Settings
     plans: "Subscription Plans",
     starter: "Starter",
     growth: "Growth",
@@ -51,6 +83,26 @@ const translations = {
     currentPlan: "Current Plan",
     upgrade: "Upgrade",
     features: "Features",
+    profile: "Profile",
+    preferences: "Preferences",
+    darkMode: "Dark Mode",
+    darkModeDesc: "Switch to dark theme",
+    pidginMode: "Pidgin Mode",
+    pidginModeDesc: "Switch to Pidgin English",
+    bankAccounts: "Bank Accounts",
+    exportData: "Export Data",
+    exportDesc: "Download your financial data as CSV or JSON",
+    teamAccess: "Team Access",
+    teamDesc: "Invite your accountant or team members to view your data",
+    inviteBtn: "Invite",
+    removeBtn: "Remove",
+    bankSecurity: "Bank-Level Security",
+    bankSecurityDesc: "Your data is protected with 256-bit encryption. We only have read-only access to your bank accounts.",
+    manageAccount: "Manage your account and preferences",
+    subscriptionPlan: "Subscription Plan",
+    
+    // Tax Calculator
+    askQuestion: "Ask me anything about Nigerian taxes...",
     amount: "Amount",
     category: "Category",
     description: "Description",
@@ -75,25 +127,47 @@ const translations = {
     totalTaxOwed: "Total Tax Owed",
     potentialSavings: "Potential Savings",
     disclaimer: "This estimate is for guidance. Consult a certified tax professional for your final filing.",
+    
+    // Tax Filing
     filingGuide: "Filing Guide",
     checklist: "Filing Checklist",
     documents: "Documents Needed",
     deadlines: "Deadlines",
     firs: "Go to FIRS Portal",
-    darkMode: "Dark Mode",
-    pidginMode: "Pidgin Mode",
+    
+    // Notifications
     notifications: "Notifications",
-    profile: "Profile",
+    markAllRead: "Mark all read",
+    noNotifications: "No notifications",
+    enableBrowserNotifications: "Enable browser notifications for deadline reminders",
+    
+    // Landing page
+    heroTitle: "Take Control of Your Nigerian Taxes",
+    heroSubtitle: "Track expenses, auto-categorize transactions, and calculate your PITA, CITA, and VAT with confidence.",
+    featureTracking: "Auto-Tracking",
+    featureTrackingDesc: "Link your bank for automatic expense categorization",
+    featureTax: "Smart Tax Engine",
+    featureTaxDesc: "Calculate PITA, CITA, VAT (7.5%) and WHT accurately",
+    featureAssistant: "AI Tax Assistant",
+    featureAssistantDesc: "Get instant answers to your Nigerian tax questions",
+    featureReceipt: "Receipt Scanner",
+    featureReceiptDesc: "Snap receipts and auto-create expense entries",
+    pricingTitle: "Simple, Transparent Pricing",
+    pricingSubtitle: "Choose the plan that works for your business",
   },
   pidgin: {
+    // Navigation
     welcome: "Welcome to NairaTrack",
-    tagline: "Your paddy for Nigerian tax and money tracking",
+    tagline: "Your paddy for Nigerian tax and money wahala",
     dashboard: "Dashboard",
     transactions: "Transactions",
     taxCalculator: "Tax Calculator",
     taxGuide: "Tax Guide",
     education: "Learn",
     settings: "Settings",
+    chatAssistant: "Tax Helper",
+    
+    // Dashboard
     linkBank: "Connect Bank",
     addIncome: "Add Money Wey Enter",
     addExpense: "Add Money Wey Comot",
@@ -107,7 +181,34 @@ const translations = {
     spendingBreakdown: "How You Take Spend Am",
     flaggedTransactions: "Transactions Wey Need Attention",
     upcomingDeadlines: "Deadlines Wey Dey Come",
-    securityBadge: "We No Fit Touch Your Money — Na Read-Only",
+    quickActions: "Quick Actions",
+    welcomeBack: "Welcome back",
+    allTime: "All time",
+    accountsLinked: "accounts wey dey linked",
+    incomeTaxVat: "Income Tax + VAT",
+    healthExcellent: "Sharp sharp! Your money dey well organized.",
+    healthGood: "You dey try! Continue to track your expenses.",
+    healthLow: "Connect your bank and track more transactions make things better.",
+    noExpenses: "You never track any expenses yet",
+    
+    // Insights
+    smartInsights: "Smart Tips",
+    recurringExpenses: "Expenses Wey Dey Repeat",
+    monthlyRecurring: "Monthly Recurring",
+    frequency: "How Often",
+    occurrences: "times",
+    noRecurring: "We never see any expenses wey dey repeat yet",
+    noInsights: "Add transactions make we give you spending tips",
+    viewAll: "See All",
+    
+    // Transactions page
+    addTransaction: "Add Transaction",
+    recentTransactions: "Recent Transactions",
+    noTransactions: "You no get any transaction yet. Add your first one!",
+    confirmDelete: "You wan delete this transaction?",
+    
+    // Auth
+    securityBadge: "We No Fit Touch Your Money -- Na Read-Only",
     login: "Enter",
     register: "Create Account",
     logout: "Comot",
@@ -121,10 +222,11 @@ const translations = {
     monthlyIncome: "How Much You Dey Make Per Month",
     getStarted: "Start Free",
     startTrial: "Try Am Free for 7 Days",
-    chatAssistant: "Tax Helper",
-    askQuestion: "Ask me anything about Nigerian tax...",
     noAccount: "You no get account?",
     haveAccount: "You don get account?",
+    forgotPassword: "You forget password?",
+    
+    // Settings
     plans: "Plans",
     starter: "Starter",
     growth: "Growth",
@@ -133,6 +235,26 @@ const translations = {
     currentPlan: "Your Plan",
     upgrade: "Upgrade",
     features: "Wetin You Go Get",
+    profile: "Profile",
+    preferences: "Preferences",
+    darkMode: "Dark Mode",
+    darkModeDesc: "Change to dark theme",
+    pidginMode: "Pidgin Mode",
+    pidginModeDesc: "Change to Pidgin English",
+    bankAccounts: "Bank Accounts",
+    exportData: "Export Data",
+    exportDesc: "Download your money data as CSV or JSON",
+    teamAccess: "Team Access",
+    teamDesc: "Invite your accountant or team members to see your data",
+    inviteBtn: "Invite",
+    removeBtn: "Remove",
+    bankSecurity: "Bank-Level Security",
+    bankSecurityDesc: "Your data dey protected with strong encryption. We only fit read your bank account, we no fit touch your money.",
+    manageAccount: "Manage your account and settings",
+    subscriptionPlan: "Subscription Plan",
+    
+    // Tax Calculator
+    askQuestion: "Ask me anything about Nigerian tax...",
     amount: "Amount",
     category: "Category",
     description: "Description",
@@ -157,15 +279,33 @@ const translations = {
     totalTaxOwed: "Total Tax to Pay",
     potentialSavings: "Money You Fit Save",
     disclaimer: "This one na estimate o. Talk to tax person before you file.",
+    
+    // Tax Filing
     filingGuide: "How to File",
     checklist: "Filing Checklist",
     documents: "Papers Wey You Need",
     deadlines: "Deadlines",
     firs: "Go FIRS Website",
-    darkMode: "Dark Mode",
-    pidginMode: "Pidgin Mode",
+    
+    // Notifications
     notifications: "Notifications",
-    profile: "Profile",
+    markAllRead: "Mark all as read",
+    noNotifications: "No notifications",
+    enableBrowserNotifications: "Turn on browser notifications for deadline reminders",
+    
+    // Landing page
+    heroTitle: "Take Control of Your Nigerian Taxes",
+    heroSubtitle: "Track spending, auto-sort transactions, calculate PITA, CITA, and VAT with peace of mind.",
+    featureTracking: "Auto-Tracking",
+    featureTrackingDesc: "Connect your bank, we go sort your expenses automatically",
+    featureTax: "Smart Tax Engine",
+    featureTaxDesc: "Calculate PITA, CITA, VAT (7.5%) and WHT sharp sharp",
+    featureAssistant: "AI Tax Helper",
+    featureAssistantDesc: "Ask any Nigerian tax question, get answer one time",
+    featureReceipt: "Receipt Scanner",
+    featureReceiptDesc: "Snap receipt, we go create expense entry for you",
+    pricingTitle: "Simple Pricing, No Wahala",
+    pricingSubtitle: "Pick the plan wey work for your business",
   }
 };
 
@@ -183,7 +323,7 @@ export function LanguageProvider({ children }) {
     localStorage.setItem('nairatrack_language', newLang);
   };
 
-  const t = (key) => translations[language][key] || key;
+  const t = (key) => translations[language][key] || translations['en'][key] || key;
 
   return (
     <LanguageContext.Provider value={{ language, toggleLanguage, t }}>
