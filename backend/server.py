@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, File, UploadFile, Response, Query
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
@@ -16,6 +16,11 @@ import requests
 import httpx
 import hmac
 import hashlib
+import asyncio
+import resend
+import io
+import csv
+import json
 from datetime import datetime, timezone, timedelta
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from typing import List, Optional
@@ -45,6 +50,15 @@ MONO_SECRET_KEY = os.environ.get("MONO_SECRET_KEY", "")
 MONO_PUBLIC_KEY = os.environ.get("MONO_PUBLIC_KEY", "")
 MONO_WEBHOOK_SECRET = os.environ.get("MONO_WEBHOOK_SECRET", "")
 MONO_API_BASE = "https://api.withmono.com/v2"
+
+# Resend Email Configuration
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "onboarding@resend.dev")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+
+# Initialize Resend
+if RESEND_API_KEY:
+    resend.api_key = RESEND_API_KEY
 
 def get_jwt_secret() -> str:
     return os.environ["JWT_SECRET"]
@@ -289,6 +303,9 @@ async def register(user_data: UserRegister, response: Response):
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
     
+    # Generate email verification token
+    verification_token = secrets.token_urlsafe(32)
+    
     user_doc = {
         "email": email,
         "password_hash": hash_password(user_data.password),
@@ -298,11 +315,39 @@ async def register(user_data: UserRegister, response: Response):
         "subscription_plan": "starter",
         "onboarding_completed": False,
         "pidgin_mode": False,
+        "email_verified": False,
+        "verification_token": verification_token,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     
     result = await db.users.insert_one(user_doc)
     user_id = str(result.inserted_id)
+    
+    # Send verification email
+    if RESEND_API_KEY:
+        try:
+            verification_url = f"{FRONTEND_URL}/verify-email?token={verification_token}"
+            await asyncio.to_thread(resend.Emails.send, {
+                "from": SENDER_EMAIL,
+                "to": [email],
+                "subject": "Verify your NairaTrack account",
+                "html": f"""
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <div style="background: #006400; padding: 20px; text-align: center;">
+                        <h1 style="color: white; margin: 0;">NairaTrack</h1>
+                    </div>
+                    <div style="padding: 30px; background: #f9f9f9;">
+                        <h2 style="color: #022c22;">Welcome, {user_data.name}!</h2>
+                        <p style="color: #555;">Please verify your email address to complete your registration.</p>
+                        <a href="{verification_url}" style="display: inline-block; background: #006400; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; margin: 20px 0;">Verify Email</a>
+                        <p style="color: #888; font-size: 12px;">If you didn't create this account, please ignore this email.</p>
+                    </div>
+                </div>
+                """
+            })
+            logger.info(f"Verification email sent to {email}")
+        except Exception as e:
+            logger.error(f"Failed to send verification email: {e}")
     
     access_token = create_access_token(user_id, email)
     refresh_token = create_refresh_token(user_id)
@@ -319,6 +364,7 @@ async def register(user_data: UserRegister, response: Response):
         "subscription_plan": "starter",
         "onboarding_completed": False,
         "pidgin_mode": False,
+        "email_verified": False,
         "created_at": user_doc["created_at"]
     }
 
@@ -387,8 +433,153 @@ async def get_me(user: dict = Depends(get_current_user)):
         "subscription_plan": user.get("subscription_plan", "starter"),
         "onboarding_completed": user.get("onboarding_completed", False),
         "pidgin_mode": user.get("pidgin_mode", False),
+        "email_verified": user.get("email_verified", False),
         "created_at": user.get("created_at", "")
     }
+
+@api_router.post("/auth/verify-email")
+async def verify_email(request: Request):
+    """Verify user email with token"""
+    data = await request.json()
+    token = data.get("token")
+    
+    if not token:
+        raise HTTPException(status_code=400, detail="Verification token required")
+    
+    user = await db.users.find_one({"verification_token": token})
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired verification token")
+    
+    if user.get("email_verified"):
+        return {"message": "Email already verified"}
+    
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {"$set": {"email_verified": True}, "$unset": {"verification_token": ""}}
+    )
+    
+    return {"message": "Email verified successfully"}
+
+@api_router.post("/auth/resend-verification")
+async def resend_verification(user: dict = Depends(get_current_user)):
+    """Resend verification email"""
+    if user.get("email_verified"):
+        return {"message": "Email already verified"}
+    
+    if not RESEND_API_KEY:
+        raise HTTPException(status_code=400, detail="Email service not configured")
+    
+    # Generate new token
+    verification_token = secrets.token_urlsafe(32)
+    await db.users.update_one(
+        {"_id": ObjectId(user["id"])},
+        {"$set": {"verification_token": verification_token}}
+    )
+    
+    try:
+        verification_url = f"{FRONTEND_URL}/verify-email?token={verification_token}"
+        await asyncio.to_thread(resend.Emails.send, {
+            "from": SENDER_EMAIL,
+            "to": [user["email"]],
+            "subject": "Verify your NairaTrack account",
+            "html": f"""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: #006400; padding: 20px; text-align: center;">
+                    <h1 style="color: white; margin: 0;">NairaTrack</h1>
+                </div>
+                <div style="padding: 30px; background: #f9f9f9;">
+                    <h2 style="color: #022c22;">Verify Your Email</h2>
+                    <p style="color: #555;">Click the button below to verify your email address.</p>
+                    <a href="{verification_url}" style="display: inline-block; background: #006400; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; margin: 20px 0;">Verify Email</a>
+                </div>
+            </div>
+            """
+        })
+        return {"message": "Verification email sent"}
+    except Exception as e:
+        logger.error(f"Failed to send verification email: {e}")
+        raise HTTPException(status_code=500, detail="Failed to send verification email")
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str
+
+@api_router.post("/auth/forgot-password")
+async def forgot_password(data: PasswordResetRequest):
+    """Request password reset"""
+    email = data.email.lower()
+    user = await db.users.find_one({"email": email})
+    
+    # Always return success to prevent email enumeration
+    if not user:
+        return {"message": "If an account exists, a password reset email will be sent"}
+    
+    # Generate reset token
+    reset_token = secrets.token_urlsafe(32)
+    reset_expires = datetime.now(timezone.utc) + timedelta(hours=1)
+    
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {"$set": {"reset_token": reset_token, "reset_expires": reset_expires.isoformat()}}
+    )
+    
+    if RESEND_API_KEY:
+        try:
+            reset_url = f"{FRONTEND_URL}/reset-password?token={reset_token}"
+            await asyncio.to_thread(resend.Emails.send, {
+                "from": SENDER_EMAIL,
+                "to": [email],
+                "subject": "Reset your NairaTrack password",
+                "html": f"""
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <div style="background: #006400; padding: 20px; text-align: center;">
+                        <h1 style="color: white; margin: 0;">NairaTrack</h1>
+                    </div>
+                    <div style="padding: 30px; background: #f9f9f9;">
+                        <h2 style="color: #022c22;">Reset Your Password</h2>
+                        <p style="color: #555;">Click the button below to reset your password. This link expires in 1 hour.</p>
+                        <a href="{reset_url}" style="display: inline-block; background: #006400; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; margin: 20px 0;">Reset Password</a>
+                        <p style="color: #888; font-size: 12px;">If you didn't request this, please ignore this email.</p>
+                    </div>
+                </div>
+                """
+            })
+            logger.info(f"Password reset email sent to {email}")
+        except Exception as e:
+            logger.error(f"Failed to send reset email: {e}")
+    
+    return {"message": "If an account exists, a password reset email will be sent"}
+
+@api_router.post("/auth/reset-password")
+async def reset_password(data: PasswordResetConfirm):
+    """Reset password with token"""
+    if len(data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    
+    user = await db.users.find_one({"reset_token": data.token})
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+    
+    # Check expiration
+    expires = user.get("reset_expires")
+    if expires:
+        expires_dt = datetime.fromisoformat(expires)
+        if datetime.now(timezone.utc) > expires_dt:
+            raise HTTPException(status_code=400, detail="Reset token has expired")
+    
+    # Update password
+    await db.users.update_one(
+        {"_id": user["_id"]},
+        {
+            "$set": {"password_hash": hash_password(data.new_password)},
+            "$unset": {"reset_token": "", "reset_expires": ""}
+        }
+    )
+    
+    return {"message": "Password reset successfully"}
 
 @api_router.post("/auth/refresh")
 async def refresh_token(request: Request, response: Response):
@@ -800,20 +991,121 @@ async def upload_receipt(file: UploadFile = File(...), user: dict = Depends(get_
         "original_filename": file.filename,
         "content_type": file.content_type,
         "size": result.get("size", len(file_data)),
-        "extracted_data": None,  # Will be filled by AI
+        "extracted_data": None,
         "transaction_id": None,
+        "ocr_status": "pending",
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     
     await db.receipts.insert_one(receipt_doc)
     receipt_doc.pop("_id", None)
     
+    # Trigger OCR extraction in background
+    asyncio.create_task(extract_receipt_data(receipt_doc["id"], result["path"], user["id"]))
+    
     return receipt_doc
+
+async def extract_receipt_data(receipt_id: str, storage_path: str, user_id: str):
+    """Extract data from receipt using AI"""
+    api_key = os.environ.get("EMERGENT_LLM_KEY")
+    if not api_key:
+        return
+    
+    try:
+        # Get the image URL
+        storage_key = init_storage()
+        if not storage_key:
+            return
+        
+        image_url = f"{STORAGE_URL}/objects/{storage_path}"
+        
+        # Use Claude to extract receipt data
+        chat = LlmChat(
+            api_key=api_key,
+            system_message="""You are a receipt OCR assistant. Extract the following information from receipts:
+            - vendor_name: Name of the store/business
+            - date: Date of purchase (YYYY-MM-DD format)
+            - total_amount: Total amount paid (number only, no currency symbol)
+            - currency: Currency (default NGN for Nigerian Naira)
+            - category: Suggested expense category (Rent, Utilities, Transport, Equipment, Marketing, Professional Fees, Subscriptions, Food, Miscellaneous)
+            - items: List of items if visible
+            
+            Return ONLY a valid JSON object with these fields. If a field cannot be determined, use null."""
+        ).with_model("anthropic", "claude-sonnet-4-5-20250929")
+        
+        response = await chat.send_message(UserMessage(
+            text="Extract data from this receipt image. Return only JSON.",
+            image_url=image_url
+        ))
+        
+        # Parse the JSON response
+        try:
+            # Clean the response
+            response_text = response.strip()
+            if response_text.startswith("```json"):
+                response_text = response_text[7:]
+            if response_text.startswith("```"):
+                response_text = response_text[3:]
+            if response_text.endswith("```"):
+                response_text = response_text[:-3]
+            
+            extracted_data = json.loads(response_text.strip())
+            
+            # Update receipt with extracted data
+            await db.receipts.update_one(
+                {"id": receipt_id},
+                {"$set": {"extracted_data": extracted_data, "ocr_status": "completed"}}
+            )
+            
+            # Auto-create transaction if data is valid
+            if extracted_data.get("total_amount") and extracted_data.get("category"):
+                tx_doc = {
+                    "id": str(uuid.uuid4()),
+                    "user_id": user_id,
+                    "amount": float(extracted_data["total_amount"]),
+                    "type": "expense",
+                    "category": extracted_data.get("category", "Miscellaneous"),
+                    "description": f"Receipt: {extracted_data.get('vendor_name', 'Unknown vendor')}",
+                    "date": extracted_data.get("date") or datetime.now(timezone.utc).isoformat(),
+                    "bank_account_id": None,
+                    "is_recurring": False,
+                    "ai_categorized": True,
+                    "flagged": False,
+                    "receipt_id": receipt_id,
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                }
+                await db.transactions.insert_one(tx_doc)
+                
+                # Link transaction to receipt
+                await db.receipts.update_one(
+                    {"id": receipt_id},
+                    {"$set": {"transaction_id": tx_doc["id"]}}
+                )
+            
+            logger.info(f"Receipt OCR completed for {receipt_id}")
+        except json.JSONDecodeError:
+            await db.receipts.update_one(
+                {"id": receipt_id},
+                {"$set": {"ocr_status": "failed", "ocr_error": "Failed to parse AI response"}}
+            )
+    except Exception as e:
+        logger.error(f"Receipt OCR failed: {e}")
+        await db.receipts.update_one(
+            {"id": receipt_id},
+            {"$set": {"ocr_status": "failed", "ocr_error": str(e)}}
+        )
 
 @api_router.get("/receipts")
 async def get_receipts(user: dict = Depends(get_current_user)):
     receipts = await db.receipts.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(100)
     return receipts
+
+@api_router.get("/receipts/{receipt_id}")
+async def get_receipt(receipt_id: str, user: dict = Depends(get_current_user)):
+    receipt = await db.receipts.find_one({"id": receipt_id, "user_id": user["id"]}, {"_id": 0})
+    if not receipt:
+        raise HTTPException(status_code=404, detail="Receipt not found")
+    return receipt
 
 @api_router.get("/receipts/{receipt_id}/download")
 async def download_receipt(receipt_id: str, user: dict = Depends(get_current_user)):
@@ -827,6 +1119,177 @@ async def download_receipt(receipt_id: str, user: dict = Depends(get_current_use
     except Exception as e:
         logger.error(f"Receipt download failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to download receipt")
+
+# ========================
+# EXPORT (PDF/Excel)
+# ========================
+
+@api_router.get("/export/transactions")
+async def export_transactions(
+    format: str = Query("csv", enum=["csv", "json"]),
+    period: str = Query("all", enum=["month", "year", "all"]),
+    user: dict = Depends(get_current_user)
+):
+    """Export transactions as CSV or JSON"""
+    if user.get("subscription_plan") == "starter":
+        raise HTTPException(status_code=403, detail="Export requires Growth or Business plan")
+    
+    # Build date filter
+    now = datetime.now(timezone.utc)
+    query = {"user_id": user["id"]}
+    
+    if period == "month":
+        start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        query["created_at"] = {"$gte": start_date.isoformat()}
+    elif period == "year":
+        start_date = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        query["created_at"] = {"$gte": start_date.isoformat()}
+    
+    transactions = await db.transactions.find(query, {"_id": 0}).sort("date", -1).to_list(10000)
+    
+    if format == "json":
+        return StreamingResponse(
+            io.BytesIO(json.dumps(transactions, indent=2).encode()),
+            media_type="application/json",
+            headers={"Content-Disposition": f"attachment; filename=nairatrack_transactions_{period}.json"}
+        )
+    
+    # CSV format
+    output = io.StringIO()
+    if transactions:
+        fieldnames = ["date", "type", "category", "description", "amount"]
+        writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction='ignore')
+        writer.writeheader()
+        for tx in transactions:
+            writer.writerow({
+                "date": tx.get("date", ""),
+                "type": tx.get("type", ""),
+                "category": tx.get("category", ""),
+                "description": tx.get("description", ""),
+                "amount": tx.get("amount", 0)
+            })
+    
+    output.seek(0)
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode()),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=nairatrack_transactions_{period}.csv"}
+    )
+
+@api_router.get("/export/tax-report")
+async def export_tax_report(
+    format: str = Query("json", enum=["json", "csv"]),
+    user: dict = Depends(get_current_user)
+):
+    """Export comprehensive tax report"""
+    if user.get("subscription_plan") == "starter":
+        raise HTTPException(status_code=403, detail="Export requires Growth or Business plan")
+    
+    user_id = user["id"]
+    business_type = user.get("business_type", "freelancer")
+    
+    # Get all transactions for the year
+    year_start = datetime.now(timezone.utc).replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    transactions = await db.transactions.find({
+        "user_id": user_id
+    }, {"_id": 0}).to_list(10000)
+    
+    # Calculate totals
+    gross_income = sum(tx["amount"] for tx in transactions if tx["type"] == "income")
+    total_expenses = sum(tx["amount"] for tx in transactions if tx["type"] == "expense")
+    
+    # Categorize expenses
+    expense_by_category = {}
+    income_by_category = {}
+    for tx in transactions:
+        cat = tx.get("category", "Miscellaneous")
+        if tx["type"] == "expense":
+            expense_by_category[cat] = expense_by_category.get(cat, 0) + tx["amount"]
+        else:
+            income_by_category[cat] = income_by_category.get(cat, 0) + tx["amount"]
+    
+    # Deductible expenses
+    deductible_categories = ["Rent", "Utilities", "Professional Fees", "Marketing", "Equipment", "Subscriptions"]
+    deductible_expenses = sum(
+        expense_by_category.get(cat, 0) for cat in deductible_categories
+    )
+    
+    taxable_income = max(0, gross_income - deductible_expenses)
+    
+    # Calculate taxes
+    if business_type == "company":
+        income_tax = calculate_cita(taxable_income, gross_income)
+        tax_type = "Company Income Tax (CITA)"
+    else:
+        income_tax = calculate_pita(taxable_income)
+        tax_type = "Personal Income Tax (PITA)"
+    
+    vat = calculate_vat(gross_income) if business_type in ["sme", "company"] else 0
+    
+    report = {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "tax_year": datetime.now().year,
+        "business_type": business_type,
+        "tax_type": tax_type,
+        "summary": {
+            "gross_income": gross_income,
+            "total_expenses": total_expenses,
+            "deductible_expenses": deductible_expenses,
+            "taxable_income": taxable_income,
+            "income_tax": income_tax,
+            "vat": vat,
+            "total_tax_owed": income_tax + vat
+        },
+        "income_breakdown": income_by_category,
+        "expense_breakdown": expense_by_category,
+        "deductible_categories": {cat: expense_by_category.get(cat, 0) for cat in deductible_categories},
+        "transaction_count": len(transactions),
+        "disclaimer": "This report is for guidance only. Consult a certified tax professional for official filing."
+    }
+    
+    if format == "json":
+        return StreamingResponse(
+            io.BytesIO(json.dumps(report, indent=2).encode()),
+            media_type="application/json",
+            headers={"Content-Disposition": f"attachment; filename=nairatrack_tax_report_{datetime.now().year}.json"}
+        )
+    
+    # CSV format - flatten the report
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    writer.writerow(["NairaTrack Tax Report"])
+    writer.writerow(["Generated", report["generated_at"]])
+    writer.writerow(["Tax Year", report["tax_year"]])
+    writer.writerow(["Business Type", business_type])
+    writer.writerow(["Tax Type", tax_type])
+    writer.writerow([])
+    
+    writer.writerow(["SUMMARY"])
+    writer.writerow(["Gross Income", f"₦{gross_income:,.2f}"])
+    writer.writerow(["Total Expenses", f"₦{total_expenses:,.2f}"])
+    writer.writerow(["Deductible Expenses", f"₦{deductible_expenses:,.2f}"])
+    writer.writerow(["Taxable Income", f"₦{taxable_income:,.2f}"])
+    writer.writerow(["Income Tax", f"₦{income_tax:,.2f}"])
+    writer.writerow(["VAT (7.5%)", f"₦{vat:,.2f}"])
+    writer.writerow(["TOTAL TAX OWED", f"₦{income_tax + vat:,.2f}"])
+    writer.writerow([])
+    
+    writer.writerow(["INCOME BREAKDOWN"])
+    for cat, amount in income_by_category.items():
+        writer.writerow([cat, f"₦{amount:,.2f}"])
+    writer.writerow([])
+    
+    writer.writerow(["EXPENSE BREAKDOWN"])
+    for cat, amount in expense_by_category.items():
+        writer.writerow([cat, f"₦{amount:,.2f}"])
+    
+    output.seek(0)
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode()),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=nairatrack_tax_report_{datetime.now().year}.csv"}
+    )
 
 # ========================
 # AI CHAT ASSISTANT

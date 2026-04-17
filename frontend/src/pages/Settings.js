@@ -14,7 +14,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { toast } from 'sonner';
 import { 
   User, Bell, Moon, Languages, Shield, CreditCard, 
-  Link2, Unlink, Building, Check, Crown
+  Link2, Unlink, Building, Check, Crown, FileDown
 } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -476,6 +476,44 @@ export default function Settings() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Export Data */}
+        {user?.subscription_plan !== 'starter' && (
+          <Card className="rounded-2xl border-slate-200">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2" style={{ fontFamily: 'Outfit' }}>
+                <FileDown className="w-5 h-5 text-[#006400]" />
+                Export Data
+              </CardTitle>
+              <CardDescription>Download your financial data as CSV or JSON</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Button
+                  variant="outline"
+                  className="rounded-xl border-slate-200 hover:bg-[#E8F5E9]"
+                  onClick={() => window.open(`${API}/api/export/transactions?format=csv&period=all`, '_blank')}
+                  data-testid="export-transactions-csv"
+                >
+                  <FileDown className="w-4 h-4 mr-2" />
+                  Export Transactions (CSV)
+                </Button>
+                <Button
+                  variant="outline"
+                  className="rounded-xl border-slate-200 hover:bg-[#E8F5E9]"
+                  onClick={() => window.open(`${API}/api/export/tax-report?format=csv`, '_blank')}
+                  data-testid="export-tax-report-csv"
+                >
+                  <FileDown className="w-4 h-4 mr-2" />
+                  Export Tax Report (CSV)
+                </Button>
+              </div>
+              <p className="text-xs text-slate-500">
+                Note: You'll need to be logged in for exports to work. If download fails, try refreshing the page first.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Security */}
         <Card className="rounded-2xl border-slate-200 bg-[#E8F5E9]">
