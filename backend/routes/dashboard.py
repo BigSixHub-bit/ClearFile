@@ -14,7 +14,7 @@ async def get_dashboard(user: dict = Depends(get_current_user)):
     user_id = user["id"]
     now = datetime.now(timezone.utc)
 
-    all_user_transactions = await db.transactions.find({"user_id": user_id}, {"_id": 0}).to_list(10000)
+    all_user_transactions = await db.transactions.find({"user_id": user_id}, {"_id": 0}).sort("date", -1).limit(1000).to_list(1000)
     transactions = all_user_transactions
 
     total_income = sum(tx["amount"] for tx in transactions if tx["type"] == "income")
@@ -82,7 +82,7 @@ async def calculate_taxes(user: dict = Depends(get_current_user)):
     transactions = await db.transactions.find({
         "user_id": user_id,
         "date": {"$gte": year_start.isoformat()}
-    }, {"_id": 0}).to_list(10000)
+    }, {"_id": 0}).sort("date", -1).limit(1000).to_list(1000)
 
     gross_income = sum(tx["amount"] for tx in transactions if tx["type"] == "income")
     total_expenses = sum(tx["amount"] for tx in transactions if tx["type"] == "expense")

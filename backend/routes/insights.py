@@ -20,8 +20,8 @@ async def detect_recurring_expenses(user: dict = Depends(get_current_user)):
 
     transactions = await db.transactions.find(
         {"user_id": user_id, "type": "expense"},
-        {"_id": 0}
-    ).sort("date", -1).to_list(5000)
+        {"_id": 0, "amount": 1, "category": 1, "date": 1, "description": 1, "type": 1}
+    ).sort("date", -1).limit(500).to_list(500)
 
     if not transactions:
         return {"recurring": [], "total_monthly_recurring": 0}
@@ -107,8 +107,8 @@ async def get_spending_insights(user: dict = Depends(get_current_user)):
     three_months_ago = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat()
     transactions = await db.transactions.find(
         {"user_id": user_id},
-        {"_id": 0, "user_id": 0}
-    ).sort("date", -1).to_list(500)
+        {"_id": 0, "amount": 1, "type": 1, "category": 1, "date": 1, "description": 1}
+    ).sort("date", -1).limit(500).to_list(500)
 
     if not transactions:
         return {
