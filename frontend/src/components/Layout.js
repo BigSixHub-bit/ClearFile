@@ -99,7 +99,7 @@ export default function Layout({ children }) {
           body,
           icon: '/favicon.ico',
           badge: '/favicon.ico',
-          tag: 'nairatrack-notification'
+          tag: 'clearfileng-notification'
         });
       } catch (e) {
         // Silently fail for environments that don't support Notification constructor

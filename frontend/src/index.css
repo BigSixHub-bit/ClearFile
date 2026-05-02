@@ -104,7 +104,7 @@ code {
     background: hsl(var(--muted-foreground) / 0.5);
 }
 
-/* NairaTrack custom styles */
+/* ClearFile NG custom styles */
 .naira-gradient {
     background: linear-gradient(135deg, #006400 0%, #004d00 100%);
 }
