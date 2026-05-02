@@ -237,7 +237,7 @@ Transaction count: {len(transactions)}
 """
             chat = LlmChat(
                 api_key=api_key,
-                session_id=f"nairatrack-insights-{user_id}",
+                session_id=f"clearfileng-insights-{user_id}",
                 system_message="You are a Nigerian financial advisor. Give ONE specific, actionable tip (2 sentences max) based on the spending data. Focus on Nigerian tax optimization. No greetings."
             ).with_model("anthropic", "claude-sonnet-4-5-20250929")
 

@@ -371,6 +371,9 @@ export default function Transactions() {
                           {tx.ai_categorized && (
                             <Badge variant="secondary" className="text-xs bg-[#E8F5E9] text-[#006400]">AI</Badge>
                           )}
+                          {['Rent', 'Utilities', 'Professional Fees', 'Marketing', 'Equipment', 'Subscriptions', 'Transport'].includes(tx.category) && tx.type === 'expense' && (
+                            <Badge className="text-xs bg-[#006400] text-white">Tax Deductible</Badge>
+                          )}
                         </div>
                       </div>
                     </div>

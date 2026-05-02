@@ -11,7 +11,8 @@ import { toast } from 'sonner';
 import { 
   TrendingUp, TrendingDown, Calculator, Wallet, PlusCircle, 
   Camera, FileText, Link2, AlertTriangle, Calendar, ArrowRight,
-  Lightbulb, RefreshCw, Sparkles, Repeat, Info, CheckCircle, AlertCircle
+  Lightbulb, RefreshCw, Sparkles, Repeat, Info, CheckCircle, AlertCircle,
+  Award, Landmark, TrendingUp as Planner, Shield, Lock
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
@@ -40,11 +41,13 @@ export default function Dashboard() {
   const [insights, setInsights] = useState([]);
   const [recurring, setRecurring] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [tccProgress, setTccProgress] = useState(null);
 
   useEffect(() => {
     fetchDashboard();
     fetchInsights();
     fetchRecurring();
+    fetchTCCProgress();
   }, []);
 
   const fetchDashboard = async () => {
@@ -73,6 +76,15 @@ export default function Dashboard() {
       setRecurring(data.recurring || []);
     } catch (error) {
       console.error('Failed to load recurring');
+    }
+  };
+
+  const fetchTCCProgress = async () => {
+    try {
+      const { data } = await axios.get(`${API}/api/tcc/progress`, { withCredentials: true });
+      setTccProgress(data);
+    } catch (error) {
+      console.error('Failed to load TCC');
     }
   };
 
@@ -367,33 +379,68 @@ export default function Dashboard() {
 
         {/* Quick Actions & Alerts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="rounded-2xl border-slate-200">
-            <CardHeader>
-              <CardTitle className="text-lg" style={{ fontFamily: 'Outfit' }}>{t('quickActions')}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Link to="/transactions" className="block">
-                <Button variant="outline" className="w-full justify-start rounded-xl border-slate-200 hover:bg-[#E8F5E9]" data-testid="action-scan-receipt">
-                  <Camera className="w-5 h-5 mr-3 text-[#006400]" />
-                  {t('scanReceipt')}
-                </Button>
+          {/* TCC Progress + Quick Actions */}
+          <div className="space-y-6">
+            {/* TCC Progress Mini Card */}
+            {tccProgress && (
+              <Link to="/tcc">
+                <Card className="rounded-2xl border-[#FFD700] bg-gradient-to-r from-[#FFF8E1] to-white hover:shadow-md transition-shadow cursor-pointer" data-testid="tcc-mini-card">
+                  <CardContent className="p-5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-[#FFD700] rounded-xl flex items-center justify-center">
+                          <Award className="w-6 h-6 text-[#422006]" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-[#422006]">TCC Readiness</p>
+                          <p className="text-sm text-slate-500">{tccProgress.completed_count}/{tccProgress.total_count} requirements met</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl font-bold text-[#006400]" data-testid="tcc-dashboard-progress">{tccProgress.progress}%</span>
+                        <ArrowRight className="w-5 h-5 text-slate-400" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </Link>
-              <Link to="/tax-calculator" className="block">
-                <Button variant="outline" className="w-full justify-start rounded-xl border-slate-200 hover:bg-[#E8F5E9]" data-testid="action-view-report">
-                  <FileText className="w-5 h-5 mr-3 text-[#006400]" />
-                  {t('viewReport')}
-                </Button>
-              </Link>
-              {user?.subscription_plan !== 'starter' && (
-                <Link to="/settings" className="block">
-                  <Button variant="outline" className="w-full justify-start rounded-xl border-slate-200 hover:bg-[#E8F5E9]" data-testid="action-link-bank">
-                    <Link2 className="w-5 h-5 mr-3 text-[#006400]" />
-                    {t('linkBank')}
+            )}
+
+            {/* Quick Actions */}
+            <Card className="rounded-2xl border-slate-200">
+              <CardHeader>
+                <CardTitle className="text-lg" style={{ fontFamily: 'Outfit' }}>{t('quickActions')}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Link to="/transactions" className="block">
+                  <Button variant="outline" className="w-full justify-start rounded-xl border-slate-200 hover:bg-[#E8F5E9]" data-testid="action-scan-receipt">
+                    <Camera className="w-5 h-5 mr-3 text-[#006400]" />
+                    {t('scanReceipt')}
                   </Button>
                 </Link>
-              )}
-            </CardContent>
-          </Card>
+                <Link to="/tax-planner" className="block">
+                  <Button variant="outline" className="w-full justify-start rounded-xl border-slate-200 hover:bg-[#E8F5E9]" data-testid="action-tax-planner">
+                    <Calculator className="w-5 h-5 mr-3 text-[#006400]" />
+                    Tax Planner
+                  </Button>
+                </Link>
+                <Link to="/tax-obligations" className="block">
+                  <Button variant="outline" className="w-full justify-start rounded-xl border-slate-200 hover:bg-[#E8F5E9]" data-testid="action-tax-routing">
+                    <Landmark className="w-5 h-5 mr-3 text-[#006400]" />
+                    State vs Federal Tax
+                  </Button>
+                </Link>
+                {user?.subscription_plan !== 'starter' && (
+                  <Link to="/settings" className="block">
+                    <Button variant="outline" className="w-full justify-start rounded-xl border-slate-200 hover:bg-[#E8F5E9]" data-testid="action-link-bank">
+                      <Link2 className="w-5 h-5 mr-3 text-[#006400]" />
+                      {t('linkBank')}
+                    </Button>
+                  </Link>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
           <Card className="rounded-2xl border-slate-200">
             <CardHeader>
@@ -429,6 +476,34 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Trust & Security Signals */}
+        <Card className="rounded-2xl border-[#A5D6A7] bg-gradient-to-r from-[#E8F5E9] to-white" data-testid="trust-signals-card">
+          <CardContent className="p-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-6 flex-wrap justify-center">
+                <div className="flex items-center gap-2">
+                  <Lock className="w-5 h-5 text-[#006400]" />
+                  <span className="text-sm font-medium text-[#006400]">256-bit SSL</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-[#006400]" />
+                  <span className="text-sm font-medium text-[#006400]">NDPR Compliant</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-[#006400]" />
+                  <span className="text-sm font-medium text-[#006400]">Read-Only Access</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 text-xs text-slate-400">
+                <span className="font-medium">Secured by:</span>
+                <span>Mono</span>
+                <span>Okra</span>
+                <span>Stitch</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </Layout>
   );

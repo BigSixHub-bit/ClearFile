@@ -55,11 +55,11 @@ async def register(user_data: UserRegister, response: Response):
             await asyncio.to_thread(resend.Emails.send, {
                 "from": SENDER_EMAIL,
                 "to": [email],
-                "subject": "Verify your NairaTrack account",
+                "subject": "Verify your ClearFile NG account",
                 "html": f"""
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                     <div style="background: #006400; padding: 20px; text-align: center;">
-                        <h1 style="color: white; margin: 0;">NairaTrack</h1>
+                        <h1 style="color: white; margin: 0;">ClearFile NG</h1>
                     </div>
                     <div style="padding: 30px; background: #f9f9f9;">
                         <h2 style="color: #022c22;">Welcome, {user_data.name}!</h2>
@@ -194,11 +194,11 @@ async def resend_verification(user: dict = Depends(get_current_user)):
         await asyncio.to_thread(resend.Emails.send, {
             "from": SENDER_EMAIL,
             "to": [user["email"]],
-            "subject": "Verify your NairaTrack account",
+            "subject": "Verify your ClearFile NG account",
             "html": f"""
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <div style="background: #006400; padding: 20px; text-align: center;">
-                    <h1 style="color: white; margin: 0;">NairaTrack</h1>
+                    <h1 style="color: white; margin: 0;">ClearFile NG</h1>
                 </div>
                 <div style="padding: 30px; background: #f9f9f9;">
                     <h2 style="color: #022c22;">Verify Your Email</h2>
@@ -234,11 +234,11 @@ async def forgot_password(data: PasswordResetRequest):
             await asyncio.to_thread(resend.Emails.send, {
                 "from": SENDER_EMAIL,
                 "to": [email],
-                "subject": "Reset your NairaTrack password",
+                "subject": "Reset your ClearFile NG password",
                 "html": f"""
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                     <div style="background: #006400; padding: 20px; text-align: center;">
-                        <h1 style="color: white; margin: 0;">NairaTrack</h1>
+                        <h1 style="color: white; margin: 0;">ClearFile NG</h1>
                     </div>
                     <div style="padding: 30px; background: #f9f9f9;">
                         <h2 style="color: #022c22;">Reset Your Password</h2>

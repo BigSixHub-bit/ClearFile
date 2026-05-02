@@ -24,7 +24,7 @@ FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 # Storage
 STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage"
 EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY")
-APP_NAME = "nairatrack"
+APP_NAME = "clearfileng"
 
 # Subscription Prices (kobo)
 SUBSCRIPTION_PRICES = {

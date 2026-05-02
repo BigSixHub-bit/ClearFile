@@ -49,15 +49,15 @@ async def invite_team_member(data: TeamMemberInvite, user: dict = Depends(get_cu
             await asyncio.to_thread(resend.Emails.send, {
                 "from": SENDER_EMAIL,
                 "to": [data.email],
-                "subject": f"You've been invited to join {user['name']}'s NairaTrack account",
+                "subject": f"You've been invited to join {user['name']}'s ClearFile NG account",
                 "html": f"""
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                     <div style="background: #006400; padding: 20px; text-align: center;">
-                        <h1 style="color: white; margin: 0;">NairaTrack</h1>
+                        <h1 style="color: white; margin: 0;">ClearFile NG</h1>
                     </div>
                     <div style="padding: 30px; background: #f9f9f9;">
                         <h2 style="color: #022c22;">Team Invitation</h2>
-                        <p style="color: #555;">{user['name']} has invited you to access their NairaTrack account as a {data.role}.</p>
+                        <p style="color: #555;">{user['name']} has invited you to access their ClearFile NG account as a {data.role}.</p>
                         <a href="{invite_url}" style="display: inline-block; background: #006400; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; margin: 20px 0;">Accept Invitation</a>
                     </div>
                 </div>

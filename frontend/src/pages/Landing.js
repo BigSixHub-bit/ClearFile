@@ -3,18 +3,18 @@ import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { useLanguage } from '../context/LanguageContext';
-import { Shield, TrendingUp, Calculator, FileText, Wallet, Bot, ChevronRight, Check, Lock } from 'lucide-react';
+import { Shield, TrendingUp, Calculator, FileText, Wallet, Bot, ChevronRight, Check, Lock, Award, Landmark } from 'lucide-react';
 
 export default function Landing() {
   const { t } = useLanguage();
 
   const features = [
     { icon: Wallet, title: 'Bank Account Linking', desc: 'Connect your Nigerian bank accounts securely. Read-only access - we never touch your money.' },
-    { icon: TrendingUp, title: 'Auto-Categorize Spending', desc: 'AI automatically sorts your transactions into proper expense categories.' },
+    { icon: TrendingUp, title: 'AI Smart Categorizer', desc: 'AI automatically sorts your transactions into business vs personal, flagging tax-deductible expenses.' },
     { icon: Calculator, title: 'Nigerian Tax Calculator', desc: 'Accurate PITA, CITA, VAT at 7.5%, and WHT calculations based on Nigerian law.' },
-    { icon: FileText, title: 'Tax Filing Guide', desc: 'Step-by-step guidance for filing with FIRS TaxPro-Max platform.' },
+    { icon: Landmark, title: 'State vs Federal Routing', desc: 'Auto-route your tax obligations to FIRS (federal) or your state revenue service.' },
+    { icon: Award, title: 'TCC Tracker', desc: 'Track your Tax Clearance Certificate readiness and generate your TCC request letter.' },
     { icon: Bot, title: 'AI Tax Assistant', desc: 'Ask questions about Nigerian taxes and get instant, clear answers.' },
-    { icon: Shield, title: 'Bank-Level Security', desc: '256-bit encryption. Your data is protected with the highest security standards.' },
   ];
 
   const plans = [
@@ -47,7 +47,7 @@ export default function Landing() {
             <div className="w-10 h-10 bg-[#006400] rounded-xl flex items-center justify-center">
               <span className="text-white font-bold text-lg">₦</span>
             </div>
-            <span className="text-xl font-bold text-[#022c22]" style={{ fontFamily: 'Outfit' }}>NairaTrack</span>
+            <span className="text-xl font-bold text-[#022c22]" style={{ fontFamily: 'Outfit' }}>ClearFile NG</span>
           </div>
           <div className="flex items-center gap-3">
             <Link to="/login">
@@ -99,18 +99,22 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 text-center">
           <div className="flex flex-wrap items-center justify-center gap-6 text-white">
             <div className="flex items-center gap-2">
-              <Shield className="w-5 h-5 text-[#FFD700]" />
-              <span>Bank-Level Security</span>
+              <Lock className="w-5 h-5 text-[#FFD700]" />
+              <span>256-bit SSL Encryption</span>
             </div>
             <div className="h-4 w-px bg-white/30 hidden sm:block"></div>
             <div className="flex items-center gap-2">
-              <Lock className="w-5 h-5 text-[#FFD700]" />
-              <span>Read-Only Bank Access</span>
+              <Shield className="w-5 h-5 text-[#FFD700]" />
+              <span>NDPR Compliant</span>
             </div>
             <div className="h-4 w-px bg-white/30 hidden sm:block"></div>
             <div className="flex items-center gap-2">
               <Check className="w-5 h-5 text-[#FFD700]" />
-              <span>FIRS Compliant</span>
+              <span>Read-Only Bank Access</span>
+            </div>
+            <div className="h-4 w-px bg-white/30 hidden sm:block"></div>
+            <div className="flex items-center gap-2 text-white/70">
+              <span className="text-xs">Secured by: Mono | Okra | Stitch</span>
             </div>
           </div>
         </div>
@@ -213,9 +217,9 @@ export default function Landing() {
               <div className="w-10 h-10 bg-[#006400] rounded-xl flex items-center justify-center">
                 <span className="text-white font-bold text-lg">₦</span>
               </div>
-              <span className="text-xl font-bold" style={{ fontFamily: 'Outfit' }}>NairaTrack</span>
+              <span className="text-xl font-bold" style={{ fontFamily: 'Outfit' }}>ClearFile NG</span>
             </div>
-            <p className="text-slate-400 text-sm">© 2024 NairaTrack. All rights reserved.</p>
+            <p className="text-slate-400 text-sm">© 2024 ClearFile NG. All rights reserved.</p>
           </div>
         </div>
       </footer>

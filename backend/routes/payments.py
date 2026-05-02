@@ -23,7 +23,7 @@ async def initialize_payment(data: PaymentInitRequest, user: dict = Depends(get_
         raise HTTPException(status_code=400, detail="Invalid subscription plan")
 
     amount_kobo = SUBSCRIPTION_PRICES[data.plan]
-    reference = f"nairatrack_{uuid.uuid4().hex[:16]}"
+    reference = f"clearfileng_{uuid.uuid4().hex[:16]}"
 
     try:
         async with httpx.AsyncClient() as client:

@@ -1,4 +1,4 @@
-# NairaTrack Test Credentials
+# ClearFile NG Test Credentials
 
 ## Admin Account
 - Email: admin@nairatrack.ng

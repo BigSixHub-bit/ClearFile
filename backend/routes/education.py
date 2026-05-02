@@ -111,7 +111,7 @@ async def get_filing_guide(user: dict = Depends(get_current_user)):
     common_steps = [
         {"step": 1, "title": "Register on TaxPro-Max", "description": "Visit taxpromax.firs.gov.ng and create an account with your TIN"},
         {"step": 2, "title": "Gather Documents", "description": "Prepare income statements, expense receipts, and bank statements"},
-        {"step": 3, "title": "Calculate Taxable Income", "description": "Use NairaTrack's tax calculator for accurate estimates"},
+        {"step": 3, "title": "Calculate Taxable Income", "description": "Use ClearFile NG's tax calculator for accurate estimates"},
         {"step": 4, "title": "Complete Tax Return", "description": "Fill in the appropriate forms on TaxPro-Max portal"},
         {"step": 5, "title": "Submit and Pay", "description": "Submit your return and pay any tax owed via bank transfer or card"}
     ]
@@ -156,7 +156,7 @@ async def get_filing_checklist(user: dict = Depends(get_current_user)):
     bank_accounts = await db.bank_accounts.count_documents({"user_id": user_id})
 
     checklist = [
-        {"item": "Create NairaTrack account", "completed": True},
+        {"item": "Create ClearFile NG account", "completed": True},
         {"item": "Set business type", "completed": user.get("business_type") is not None},
         {"item": "Link bank account", "completed": bank_accounts > 0},
         {"item": "Track at least 10 transactions", "completed": transactions >= 10},

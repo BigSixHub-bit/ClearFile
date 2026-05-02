@@ -24,13 +24,14 @@ from routes.banking import router as banking_router
 from routes.team import router as team_router
 from routes.notifications import router as notifications_router
 from routes.insights import router as insights_router
+from routes.tax_engine import router as tax_engine_router
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Create the main app
-app = FastAPI(title="NairaTrack API", description="Nigerian Tax & Expense Management")
+app = FastAPI(title="ClearFile NG API", description="Nigerian Tax & Expense Management")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
@@ -48,12 +49,13 @@ api_router.include_router(banking_router)
 api_router.include_router(team_router)
 api_router.include_router(notifications_router)
 api_router.include_router(insights_router)
+api_router.include_router(tax_engine_router)
 
 
 # Health check endpoints
 @api_router.get("/")
 async def root():
-    return {"message": "NairaTrack API is running", "version": "2.0.0"}
+    return {"message": "ClearFile NG API is running", "version": "2.0.0"}
 
 
 @api_router.get("/health")
@@ -94,8 +96,8 @@ async def startup():
         logger.warning(f"Storage init warning: {e}")
 
     # Seed admin user
-    admin_email = os.environ.get("ADMIN_EMAIL", "admin@nairatrack.ng")
-    admin_password = os.environ.get("ADMIN_PASSWORD", "NairaTrack2024!")
+    admin_email = os.environ.get("ADMIN_EMAIL", "admin@clearfileng.ng")
+    admin_password = os.environ.get("ADMIN_PASSWORD", "ClearFile NG2024!")
     existing = await db.users.find_one({"email": admin_email})
     if existing is None:
         await db.users.insert_one({
@@ -117,7 +119,7 @@ async def startup():
     from pathlib import Path
     Path("/app/memory").mkdir(parents=True, exist_ok=True)
     with open("/app/memory/test_credentials.md", "w") as f:
-        f.write(f"""# NairaTrack Test Credentials
+        f.write(f"""# ClearFile NG Test Credentials
 
 ## Admin Account
 - Email: {admin_email}
@@ -146,7 +148,7 @@ async def startup():
 - GET /api/insights/spending
 """)
 
-    logger.info("NairaTrack API v2.0 started successfully (modular architecture)")
+    logger.info("ClearFile NG API v2.0 started successfully (modular architecture)")
 
 
 @app.on_event("shutdown")

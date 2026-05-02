@@ -5,7 +5,7 @@ const LanguageContext = createContext(null);
 const translations = {
   en: {
     // Navigation
-    welcome: "Welcome to NairaTrack",
+    welcome: "Welcome to ClearFile NG",
     tagline: "Your trusted partner for Nigerian tax and expense management",
     dashboard: "Dashboard",
     transactions: "Transactions",
@@ -157,7 +157,7 @@ const translations = {
   },
   pidgin: {
     // Navigation
-    welcome: "Welcome to NairaTrack",
+    welcome: "Welcome to ClearFile NG",
     tagline: "Your paddy for Nigerian tax and money wahala",
     dashboard: "Dashboard",
     transactions: "Transactions",
@@ -313,14 +313,14 @@ export function LanguageProvider({ children }) {
   const [language, setLanguage] = useState('en');
 
   useEffect(() => {
-    const saved = localStorage.getItem('nairatrack_language');
+    const saved = localStorage.getItem('clearfileng_language');
     if (saved) setLanguage(saved);
   }, []);
 
   const toggleLanguage = () => {
     const newLang = language === 'en' ? 'pidgin' : 'en';
     setLanguage(newLang);
-    localStorage.setItem('nairatrack_language', newLang);
+    localStorage.setItem('clearfileng_language', newLang);
   };
 
   const t = (key) => translations[language][key] || translations['en'][key] || key;

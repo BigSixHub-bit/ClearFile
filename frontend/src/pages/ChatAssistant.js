@@ -27,7 +27,7 @@ export default function ChatAssistant() {
     setMessages([
       {
         role: 'assistant',
-        content: `Hello ${user?.name?.split(' ')[0] || 'there'}! I'm your NairaTrack Tax Assistant. I can help you understand Nigerian tax laws, calculate estimates, and answer questions about PITA, CITA, VAT, and WHT. What would you like to know?`
+        content: `Hello ${user?.name?.split(' ')[0] || 'there'}! I'm your ClearFile NG Tax Assistant. I can help you understand Nigerian tax laws, calculate estimates, and answer questions about PITA, CITA, VAT, and WHT. What would you like to know?`
       }
     ]);
   }, [user]);

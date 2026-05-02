@@ -5,7 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { 
   LayoutDashboard, Receipt, Calculator, FileText, BookOpen, 
-  Settings, MessageCircle, LogOut, Menu, Shield, Bell, BellRing
+  Settings, MessageCircle, LogOut, Menu, Shield, Bell, BellRing,
+  Award, TrendingUp, Landmark
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Switch } from '../components/ui/switch';
@@ -125,6 +126,9 @@ export default function Layout({ children }) {
     { to: '/dashboard', icon: LayoutDashboard, label: t('dashboard') },
     { to: '/transactions', icon: Receipt, label: t('transactions') },
     { to: '/tax-calculator', icon: Calculator, label: t('taxCalculator') },
+    { to: '/tax-obligations', icon: Landmark, label: 'Tax Routing' },
+    { to: '/tax-planner', icon: TrendingUp, label: 'Tax Planner' },
+    { to: '/tcc', icon: Award, label: 'TCC Tracker' },
     { to: '/tax-guide', icon: FileText, label: t('taxGuide') },
     { to: '/education', icon: BookOpen, label: t('education') },
     { to: '/chat', icon: MessageCircle, label: t('chatAssistant') },
@@ -138,7 +142,7 @@ export default function Layout({ children }) {
           <div className="w-10 h-10 bg-[#006400] rounded-xl flex items-center justify-center">
             <span className="text-white font-bold text-lg">₦</span>
           </div>
-          <span className="text-xl font-bold text-[#022c22]" style={{ fontFamily: 'Outfit' }}>NairaTrack</span>
+          <span className="text-xl font-bold text-[#022c22]" style={{ fontFamily: 'Outfit' }}>ClearFile NG</span>
         </div>
       </div>
 
@@ -204,7 +208,7 @@ export default function Layout({ children }) {
             <div className="w-8 h-8 bg-[#006400] rounded-lg flex items-center justify-center">
               <span className="text-white font-bold">₦</span>
             </div>
-            <span className="font-bold text-[#022c22]" style={{ fontFamily: 'Outfit' }}>NairaTrack</span>
+            <span className="font-bold text-[#022c22]" style={{ fontFamily: 'Outfit' }}>ClearFile NG</span>
           </div>
           <div className="flex items-center gap-2">
             <Popover>
@@ -281,7 +285,7 @@ export default function Layout({ children }) {
 
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-slate-200 z-50 mobile-nav">
         <div className="flex justify-around py-2">
-          {navItems.slice(0, 5).map(item => (
+          {[navItems[0], navItems[1], navItems[2], navItems[5], navItems[9]].map(item => (
             <NavLink
               key={item.to}
               to={item.to}

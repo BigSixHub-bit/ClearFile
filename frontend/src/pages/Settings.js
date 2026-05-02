@@ -448,37 +448,52 @@ export default function Settings() {
                   Upgrade to Growth
                 </Button>
               </div>
-            ) : bankAccounts.length === 0 ? (
-              <div className="text-center py-8 text-slate-400">
-                <Building className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>No bank accounts linked yet</p>
-              </div>
             ) : (
-              <div className="space-y-3">
-                {bankAccounts.map((account, idx) => (
-                  <div
-                    key={account.id || idx}
-                    className="flex items-center justify-between p-4 bg-slate-50 rounded-xl"
-                    data-testid={`bank-account-${idx}`}
-                  >
-                    <div>
-                      <p className="font-medium text-[#022c22]">{account.bank_name}</p>
-                      <p className="text-sm text-slate-500">{account.account_number} • {account.account_name}</p>
-                      <p className="text-sm font-medium text-[#006400]">{formatCurrency(account.balance)}</p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleUnlinkBank(account.id)}
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                      data-testid={`unlink-bank-${idx}`}
-                    >
-                      <Unlink className="w-4 h-4 mr-1" />
-                      Unlink
-                    </Button>
+              <>
+                {/* Trust Signal for Bank Linking */}
+                <div className="mb-4 p-4 bg-[#E8F5E9] border border-[#A5D6A7] rounded-xl">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Shield className="w-5 h-5 text-[#006400]" />
+                    <span className="font-medium text-[#006400] text-sm">Your bank data is secure</span>
                   </div>
-                ))}
-              </div>
+                  <p className="text-xs text-slate-600">We never store your bank password. Read-only access only. Secured by 256-bit encryption.</p>
+                  <div className="flex items-center gap-3 mt-2 text-xs text-slate-400">
+                    <span>Mono</span><span>Okra</span><span>Stitch</span>
+                  </div>
+                </div>
+                {bankAccounts.length === 0 ? (
+                  <div className="text-center py-8 text-slate-400">
+                    <Building className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>No bank accounts linked yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {bankAccounts.map((account, idx) => (
+                      <div
+                        key={account.id || idx}
+                        className="flex items-center justify-between p-4 bg-slate-50 rounded-xl"
+                        data-testid={`bank-account-${idx}`}
+                      >
+                        <div>
+                          <p className="font-medium text-[#022c22]">{account.bank_name}</p>
+                          <p className="text-sm text-slate-500">{account.account_number} • {account.account_name}</p>
+                          <p className="text-sm font-medium text-[#006400]">{formatCurrency(account.balance)}</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleUnlinkBank(account.id)}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          data-testid={`unlink-bank-${idx}`}
+                        >
+                          <Unlink className="w-4 h-4 mr-1" />
+                          Unlink
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>

@@ -68,7 +68,7 @@ export default function Register() {
             <div className="w-12 h-12 bg-[#006400] rounded-xl flex items-center justify-center">
               <span className="text-white font-bold text-xl">₦</span>
             </div>
-            <span className="text-2xl font-bold text-[#022c22]" style={{ fontFamily: 'Outfit' }}>NairaTrack</span>
+            <span className="text-2xl font-bold text-[#022c22]" style={{ fontFamily: 'Outfit' }}>ClearFile NG</span>
           </Link>
         </div>
 
@@ -152,6 +152,7 @@ export default function Register() {
                     <SelectItem value="freelancer">{t('freelancer')}</SelectItem>
                     <SelectItem value="sme">{t('sme')}</SelectItem>
                     <SelectItem value="company">{t('company')}</SelectItem>
+                    <SelectItem value="salary_earner">Salary Earner</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

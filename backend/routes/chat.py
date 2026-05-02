@@ -21,9 +21,9 @@ async def chat_with_assistant(message: ChatMessage, user: dict = Depends(get_cur
     if not api_key:
         raise HTTPException(status_code=500, detail="AI service not configured")
 
-    session_id = message.session_id or f"nairatrack-{user['id']}-{uuid.uuid4()}"
+    session_id = message.session_id or f"clearfileng-{user['id']}-{uuid.uuid4()}"
 
-    system_message = f"""You are NairaTrack Tax Assistant, an expert on Nigerian tax laws and financial management.
+    system_message = f"""You are ClearFile NG Tax Assistant, an expert on Nigerian tax laws and financial management.
     You help Nigerian freelancers, SMEs, and companies understand:
     - Personal Income Tax (PITA) rates (7% to 24% progressive)
     - Company Income Tax (CITA) at 20% for small companies (<N25M) or 30% for larger ones

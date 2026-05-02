@@ -1,20 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Label } from '../components/ui/label';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
-import { Check, Shield, Wallet, ArrowRight } from 'lucide-react';
+import { Check, Shield, Wallet, ArrowRight, MapPin, Users, Lock } from 'lucide-react';
+
+const API = process.env.REACT_APP_BACKEND_URL;
 
 export default function Onboarding() {
   const [step, setStep] = useState(1);
+  const [selectedState, setSelectedState] = useState('lagos');
+  const [states, setStates] = useState([]);
   const { user, updateSettings } = useAuth();
   const navigate = useNavigate();
 
+  useEffect(() => {
+    fetchStates();
+  }, []);
+
+  const fetchStates = async () => {
+    try {
+      const { data } = await axios.get(`${API}/api/states`, { withCredentials: true });
+      setStates(data.states || []);
+    } catch (e) { /* ignore */ }
+  };
+
   const completeOnboarding = async () => {
     try {
+      // Save state selection
+      await axios.put(`${API}/api/user/state`, { state_of_residence: selectedState }, { withCredentials: true });
       await updateSettings({ onboarding_completed: true });
-      toast.success('Welcome to NairaTrack!');
+      toast.success('Welcome to ClearFile NG!');
       navigate('/dashboard');
     } catch (error) {
       toast.error('Something went wrong');
@@ -23,18 +43,19 @@ export default function Onboarding() {
 
   const steps = [
     {
-      title: 'Welcome to NairaTrack!',
-      subtitle: `Hi ${user?.name || 'there'}! We're excited to help you manage your taxes.`,
+      title: 'Welcome to ClearFile NG!',
+      subtitle: `Hi ${user?.name || 'there'}! Let's set up your tax management.`,
       content: (
         <div className="space-y-4">
           <div className="bg-[#E8F5E9] rounded-2xl p-6">
-            <h3 className="font-semibold text-[#006400] mb-3 text-lg">What NairaTrack does:</h3>
+            <h3 className="font-semibold text-[#006400] mb-3 text-lg">What ClearFile NG does:</h3>
             <ul className="space-y-3">
               {[
                 'Track all your income and expenses automatically',
-                'Calculate your taxes based on Nigerian law (PITA, CITA, VAT)',
-                'Guide you through filing with FIRS',
-                'Keep your financial records organized'
+                'Calculate taxes based on Nigerian law (PITA, CITA, VAT)',
+                'Route obligations correctly to FIRS or your state revenue',
+                'Track your Tax Clearance Certificate readiness',
+                'AI assistant for Nigerian tax questions'
               ].map((item, i) => (
                 <li key={i} className="flex items-start gap-3">
                   <div className="w-5 h-5 bg-[#006400] rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -45,12 +66,49 @@ export default function Onboarding() {
               ))}
             </ul>
           </div>
+          <div className="text-center p-3 bg-slate-50 rounded-xl">
+            <p className="text-sm text-slate-500">
+              You registered as: <span className="font-semibold text-[#006400] capitalize">{user?.business_type?.replace('_', ' ')}</span>
+            </p>
+          </div>
         </div>
       )
     },
     {
-      title: 'Your Money Is Safe',
-      subtitle: 'Understanding how bank linking works',
+      title: 'Select Your State',
+      subtitle: 'We need this to route your PAYE and state taxes correctly',
+      content: (
+        <div className="space-y-6">
+          <div className="bg-gradient-to-br from-[#E8F5E9] to-[#C8E6C9] rounded-2xl p-6 border border-[#A5D6A7]">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-[#006400] rounded-full flex items-center justify-center">
+                <MapPin className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="font-bold text-[#006400] text-lg">State of Residence</h3>
+                <p className="text-sm text-[#004d00]">Your PAYE goes to your state revenue service</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-700">Select your state</Label>
+              <Select value={selectedState} onValueChange={setSelectedState}>
+                <SelectTrigger className="rounded-xl bg-white" data-testid="onboarding-state-select">
+                  <SelectValue placeholder="Select state" />
+                </SelectTrigger>
+                <SelectContent>
+                  {states.map(s => (
+                    <SelectItem key={s.id} value={s.id}>{s.name} ({s.service})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+      )
+    },
+    {
+      title: 'Your Data Is Safe',
+      subtitle: 'Bank-grade security for your finances',
       content: (
         <div className="space-y-6">
           <div className="bg-gradient-to-br from-[#E8F5E9] to-[#C8E6C9] rounded-2xl p-6 border border-[#A5D6A7]">
@@ -64,14 +122,23 @@ export default function Onboarding() {
               </div>
             </div>
             <p className="text-slate-700 mb-4">
-              When you link your bank account, NairaTrack only reads your transaction history to help categorize expenses. 
-              We use bank-level 256-bit encryption.
+              We never store your bank password. Read-only access only. Secured by 256-bit encryption.
             </p>
-            <div className="bg-white/60 rounded-xl p-4">
-              <p className="text-sm text-slate-600 font-medium">
-                You can unlink your bank at any time with one tap in Settings.
-              </p>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="flex flex-col items-center p-3 bg-white/60 rounded-xl">
+                <Lock className="w-5 h-5 text-[#006400] mb-1" />
+                <span className="text-xs text-slate-600 text-center">256-bit SSL</span>
+              </div>
+              <div className="flex flex-col items-center p-3 bg-white/60 rounded-xl">
+                <Shield className="w-5 h-5 text-[#006400] mb-1" />
+                <span className="text-xs text-slate-600 text-center">NDPR Compliant</span>
+              </div>
+              <div className="flex flex-col items-center p-3 bg-white/60 rounded-xl">
+                <Check className="w-5 h-5 text-[#006400] mb-1" />
+                <span className="text-xs text-slate-600 text-center">Read-Only</span>
+              </div>
             </div>
+            <p className="text-xs text-slate-500 mt-4 text-center">Secured by: Mono | Okra | Stitch</p>
           </div>
         </div>
       )
@@ -95,7 +162,7 @@ export default function Onboarding() {
               {[
                 'Link your bank account (Growth/Business plans)',
                 'Review and categorize your transactions',
-                'Check your tax estimate on the dashboard'
+                'Check your TCC progress and tax estimate'
               ].map((item, i) => (
                 <li key={i} className="flex items-start gap-3">
                   <span className="w-6 h-6 bg-[#FFD700] text-[#422006] rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">
@@ -107,7 +174,7 @@ export default function Onboarding() {
             </ol>
           </div>
           <p className="text-center text-slate-500 text-sm">
-            You're on the <span className="font-semibold text-[#006400] capitalize">{user?.subscription_plan || 'Starter'}</span> plan. 
+            You're on the <span className="font-semibold text-[#006400] capitalize">{user?.subscription_plan || 'Starter'}</span> plan.
             You can upgrade anytime in Settings.
           </p>
         </div>
@@ -120,7 +187,6 @@ export default function Onboarding() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#E8F5E9] via-[#FAFAFA] to-[#FFF8E1] flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
-        {/* Progress */}
         <div className="flex items-center justify-center gap-2 mb-8">
           {steps.map((_, i) => (
             <div
