@@ -29,8 +29,8 @@ APP_NAME = "clearfileng"
 # Subscription Prices (kobo)
 SUBSCRIPTION_PRICES = {
     "starter": 200000,
+    "pro": 400000,
     "growth": 400000,
-    "business": 600000
 }
 
 # Nigerian Tax Rates

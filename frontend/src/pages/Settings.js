@@ -241,9 +241,8 @@ export default function Settings() {
   };
 
   const plans = [
-    { id: 'starter', name: 'Starter', price: 2000, features: ['Manual tracking', '50 transactions/month', 'Basic tax estimate'] },
-    { id: 'growth', name: 'Growth', price: 4000, features: ['Bank linking (2 accounts)', '300 transactions/month', 'AI categorization', 'VAT tracking'] },
-    { id: 'business', name: 'Business', price: 6000, features: ['Unlimited accounts', 'Unlimited transactions', 'PDF/Excel export', 'Multi-user access'] }
+    { id: 'starter', name: 'Starter', price: 2000, target: 'Freelancers / Simple Income', features: ['Manual income & expense tracking', 'Basic tax estimate & filing reminders', 'Receipt scanner (Up to 20/month)', 'Up to 100 transactions/month'] },
+    { id: 'pro', name: 'Pro', price: 4000, popular: true, target: 'Power Users & Small Businesses', features: ['Everything in Starter', 'Unlimited bank account linking', 'Unlimited transactions & AI Auto-categorization', 'VAT & WHT tracking', 'Full AI Tax Assistant', '1-Click PDF/Excel tax report exports'] }
   ];
 
   return (
@@ -293,49 +292,54 @@ export default function Settings() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
               {plans.map(plan => (
                 <div
                   key={plan.id}
-                  className={`p-4 rounded-xl border-2 ${
-                    user?.subscription_plan === plan.id
+                  className={`p-6 rounded-2xl border-2 transition-all ${
+                    user?.subscription_plan === plan.id || (user?.subscription_plan === 'growth' && plan.id === 'pro') || (user?.subscription_plan === 'business' && plan.id === 'pro')
                       ? 'border-[#006400] bg-[#E8F5E9]'
+                      : plan.popular
+                      ? 'border-[#006400] shadow-lg shadow-[#006400]/10'
                       : 'border-slate-200'
                   }`}
                   data-testid={`plan-option-${plan.id}`}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-bold text-[#022c22]">{plan.name}</h4>
-                    {user?.subscription_plan === plan.id && (
-                      <Badge className="bg-[#006400] text-white">Current</Badge>
-                    )}
+                  <div className="flex items-center justify-between mb-1">
+                    <h4 className="font-bold text-lg text-[#022c22]">{plan.name}</h4>
+                    <div className="flex gap-2">
+                      {plan.popular && (
+                        <Badge className="bg-[#FFD700] text-[#422006] font-bold">Most Popular</Badge>
+                      )}
+                      {(user?.subscription_plan === plan.id || (user?.subscription_plan === 'growth' && plan.id === 'pro') || (user?.subscription_plan === 'business' && plan.id === 'pro')) && (
+                        <Badge className="bg-[#006400] text-white">Current</Badge>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-2xl font-bold text-[#006400] mb-3">
+                  <p className="text-xs text-slate-500 mb-3">{plan.target}</p>
+                  <p className="text-3xl font-bold text-[#006400] mb-4">
                     {formatCurrency(plan.price)}<span className="text-sm font-normal text-slate-500">/mo</span>
                   </p>
-                  <ul className="space-y-1 mb-4">
+                  <ul className="space-y-2 mb-6">
                     {plan.features.map((f, i) => (
-                      <li key={i} className="text-sm text-slate-600 flex items-center gap-2">
-                        <Check className="w-4 h-4 text-[#006400]" />
+                      <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
+                        <Check className="w-4 h-4 text-[#006400] flex-shrink-0 mt-0.5" />
                         {f}
                       </li>
                     ))}
                   </ul>
-                  {user?.subscription_plan !== plan.id && (
+                  {!(user?.subscription_plan === plan.id || (user?.subscription_plan === 'growth' && plan.id === 'pro') || (user?.subscription_plan === 'business' && plan.id === 'pro')) && (
                     <Button
-                      onClick={() => handleUpgradePlan(plan.id)}
+                      onClick={() => handleUpgradePlan(plan.id === 'pro' ? 'growth' : plan.id)}
                       disabled={loading}
-                      variant={plan.id === 'growth' ? 'default' : 'outline'}
-                      className={`w-full rounded-xl ${
-                        plan.id === 'growth' ? 'bg-[#006400] hover:bg-[#004d00] text-white' : ''
+                      className={`w-full rounded-xl py-5 ${
+                        plan.popular
+                          ? 'bg-[#006400] hover:bg-[#004d00] text-white'
+                          : 'bg-[#E8F5E9] hover:bg-[#C8E6C9] text-[#006400]'
                       }`}
                       data-testid={`upgrade-to-${plan.id}`}
                     >
-                      {loading ? 'Processing...' : (
-                        plans.findIndex(p => p.id === user?.subscription_plan) < plans.findIndex(p => p.id === plan.id)
-                          ? 'Upgrade with Paystack'
-                          : 'Switch Plan'
-                      )}
+                      {loading ? 'Processing...' : 'Get Started'}
                     </Button>
                   )}
                 </div>

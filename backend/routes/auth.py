@@ -320,7 +320,7 @@ async def update_settings(request: Request, user: dict = Depends(get_current_use
 async def update_subscription(request: Request, user: dict = Depends(get_current_user)):
     data = await request.json()
     plan = data.get("plan")
-    if plan not in ["starter", "growth", "business"]:
+    if plan not in ["starter", "pro", "growth", "business"]:
         raise HTTPException(status_code=400, detail="Invalid subscription plan")
     await db.users.update_one(
         {"_id": ObjectId(user["id"])},

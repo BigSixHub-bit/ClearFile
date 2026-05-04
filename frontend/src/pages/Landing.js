@@ -21,20 +21,16 @@ export default function Landing() {
     {
       name: 'Starter',
       price: '₦2,000',
-      features: ['Manual expense tracking', 'Basic tax estimate', 'Filing reminders', 'Receipt scanner (10/month)', 'Up to 50 transactions/month'],
+      target: 'Freelancers / Simple Income',
+      features: ['Manual income & expense tracking', 'Basic tax estimate & filing reminders', 'Receipt scanner (Up to 20/month)', 'Up to 100 transactions/month'],
       highlight: false
     },
     {
-      name: 'Growth',
+      name: 'Pro',
       price: '₦4,000',
-      features: ['Everything in Starter', 'Bank account linking (2 accounts)', 'Auto-categorization', 'AI spending organizer', 'VAT & WHT tracking', 'Up to 300 transactions/month'],
+      target: 'Power Users & Small Businesses',
+      features: ['Everything in Starter', 'Unlimited bank account linking', 'Unlimited transactions & AI Auto-categorization', 'VAT & WHT tracking', 'Full AI Tax Assistant', '1-Click PDF/Excel tax report exports'],
       highlight: true
-    },
-    {
-      name: 'Business',
-      price: '₦6,000',
-      features: ['Everything in Growth', 'Unlimited bank accounts', 'Unlimited transactions', 'PDF/Excel export', 'Multi-user access', 'Priority support', 'Full AI tax assistant'],
-      highlight: false
     }
   ];
 
@@ -156,25 +152,26 @@ export default function Landing() {
             </h2>
             <p className="text-lg text-slate-600">Choose the plan that fits your business</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             {plans.map((plan, idx) => (
               <Card 
                 key={idx} 
-                className={`rounded-2xl ${plan.highlight ? 'border-2 border-[#006400] shadow-lg' : 'border border-slate-200'}`}
+                className={`rounded-2xl ${plan.highlight ? 'border-2 border-[#006400] shadow-lg shadow-[#006400]/10' : 'border border-slate-200'}`}
                 data-testid={`plan-card-${plan.name.toLowerCase()}`}
               >
-                <CardContent className="p-6">
+                <CardContent className="p-8">
                   {plan.highlight && (
                     <div className="bg-[#FFD700] text-[#422006] text-xs font-bold px-3 py-1 rounded-full inline-block mb-4">
                       MOST POPULAR
                     </div>
                   )}
-                  <h3 className="text-xl font-bold text-[#022c22] mb-2" style={{ fontFamily: 'Outfit' }}>{plan.name}</h3>
+                  <h3 className="text-xl font-bold text-[#022c22] mb-1" style={{ fontFamily: 'Outfit' }}>{plan.name}</h3>
+                  <p className="text-sm text-slate-500 mb-4">{plan.target}</p>
                   <div className="flex items-baseline gap-1 mb-6">
-                    <span className="text-3xl font-bold text-[#006400]">{plan.price}</span>
+                    <span className="text-4xl font-bold text-[#006400]">{plan.price}</span>
                     <span className="text-slate-500">/month</span>
                   </div>
-                  <ul className="space-y-3 mb-6">
+                  <ul className="space-y-3 mb-8">
                     {plan.features.map((f, i) => (
                       <li key={i} className="flex items-start gap-2">
                         <Check className="w-5 h-5 text-[#006400] flex-shrink-0 mt-0.5" />
@@ -184,7 +181,7 @@ export default function Landing() {
                   </ul>
                   <Link to="/register">
                     <Button 
-                      className={`w-full rounded-xl ${plan.highlight ? 'bg-[#006400] hover:bg-[#004d00] text-white' : 'bg-[#E8F5E9] hover:bg-[#C8E6C9] text-[#006400]'}`}
+                      className={`w-full rounded-xl py-5 ${plan.highlight ? 'bg-[#006400] hover:bg-[#004d00] text-white' : 'bg-[#E8F5E9] hover:bg-[#C8E6C9] text-[#006400]'}`}
                       data-testid={`select-plan-${plan.name.toLowerCase()}`}
                     >
                       Get Started

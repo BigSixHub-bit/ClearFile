@@ -149,46 +149,31 @@ async def get_subscription_plans():
                 "name": "Starter",
                 "price": 2000,
                 "price_display": "N2,000",
+                "target": "Freelancers / Simple Income",
                 "features": [
-                    "Manual expense tracking",
-                    "Basic tax estimate",
-                    "Filing reminders",
-                    "Receipt scanner (10/month)",
-                    "Up to 50 transactions/month"
+                    "Manual income & expense tracking",
+                    "Basic tax estimate & filing reminders",
+                    "Receipt scanner (Up to 20/month)",
+                    "Up to 100 transactions/month"
                 ],
                 "bank_linking": False
             },
             {
-                "id": "growth",
-                "name": "Growth",
+                "id": "pro",
+                "name": "Pro",
                 "price": 4000,
                 "price_display": "N4,000",
+                "target": "Power Users & Small Businesses",
                 "features": [
                     "Everything in Starter",
-                    "Bank account linking (2 accounts)",
-                    "Auto-categorization",
-                    "AI spending organizer",
+                    "Unlimited bank account linking",
+                    "Unlimited transactions & AI Auto-categorization",
                     "VAT & WHT tracking",
-                    "Up to 300 transactions/month"
+                    "Full AI Tax Assistant",
+                    "1-Click PDF/Excel tax report exports"
                 ],
                 "bank_linking": True,
                 "popular": True
-            },
-            {
-                "id": "business",
-                "name": "Business",
-                "price": 6000,
-                "price_display": "N6,000",
-                "features": [
-                    "Everything in Growth",
-                    "Unlimited bank accounts",
-                    "Unlimited transactions",
-                    "PDF/Excel export",
-                    "Multi-user access",
-                    "Priority support",
-                    "Full AI tax assistant"
-                ],
-                "bank_linking": True
             }
         ],
         "paystack_public_key": PAYSTACK_PUBLIC_KEY
