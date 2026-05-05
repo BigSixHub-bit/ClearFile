@@ -308,7 +308,7 @@ async def refresh_token(request: Request, response: Response):
 async def update_settings(request: Request, user: dict = Depends(get_current_user)):
     data = await request.json()
     update_fields = {}
-    for field in ["pidgin_mode", "onboarding_completed", "business_type", "monthly_income_range"]:
+    for field in ["pidgin_mode", "onboarding_completed", "business_type", "monthly_income_range", "tin_number"]:
         if field in data:
             update_fields[field] = data[field]
     if update_fields:

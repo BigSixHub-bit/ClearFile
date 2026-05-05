@@ -10,18 +10,8 @@
 - Register with any email/password
 - Default plan: Starter
 
-## API Endpoints
-- POST /api/auth/register
-- POST /api/auth/login
-- POST /api/auth/logout
-- GET /api/auth/me
-- GET /api/dashboard
-- GET /api/transactions
-- POST /api/transactions
-- GET /api/bank-accounts
-- POST /api/bank-accounts
-- GET /api/tax-calculation
-- POST /api/chat
-- POST /api/receipts/upload
-- GET /api/insights/recurring
-- GET /api/insights/spending
+## WhatsApp Webhook
+- POST /api/whatsapp/webhook (receives incoming messages)
+- POST /api/whatsapp/test-parse (test NLP parsing)
+- POST /api/whatsapp/link (link phone number)
+- GET /api/whatsapp/status (check link status)

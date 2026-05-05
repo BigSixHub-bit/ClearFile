@@ -86,15 +86,15 @@ export default function TCCTracker() {
           </div>
           <CardContent className="p-6">
             {tccData?.tcc_ready ? (
-              <div className="text-center py-4">
-                <div className="w-16 h-16 bg-[#E8F5E9] rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle className="w-10 h-10 text-[#006400]" />
+              <div className="text-center py-6">
+                <div className="w-20 h-20 bg-[#E8F5E9] rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="w-12 h-12 text-[#006400]" />
                 </div>
-                <h3 className="text-xl font-bold text-[#006400] mb-2">You're TCC Ready!</h3>
-                <p className="text-slate-600 mb-4">Download your TCC Request Letter and submit to FIRS or your state revenue service.</p>
-                <Button onClick={downloadLetter} className="bg-[#006400] hover:bg-[#004d00] text-white rounded-xl" data-testid="download-tcc-letter">
-                  <Download className="w-4 h-4 mr-2" />
-                  Download TCC Request Letter (PDF)
+                <h3 className="text-2xl font-bold text-[#006400] mb-2">You're TCC Ready!</h3>
+                <p className="text-slate-600 mb-6">All requirements met. Generate your FIRS/LIRS Application Pack now.</p>
+                <Button onClick={downloadLetter} size="lg" className="bg-[#006400] hover:bg-[#004d00] text-white rounded-xl px-8 py-6 text-lg" data-testid="download-tcc-letter">
+                  <Download className="w-5 h-5 mr-2" />
+                  Generate FIRS/LIRS Application Pack
                 </Button>
               </div>
             ) : (
@@ -133,9 +133,18 @@ export default function TCCTracker() {
                   <p className={`font-medium ${item.completed ? 'text-[#006400]' : 'text-[#022c22]'}`}>{item.item}</p>
                   <p className="text-sm text-slate-500 mt-1">{item.description}</p>
                 </div>
-                <Badge variant={item.completed ? "default" : "outline"} className={item.completed ? "bg-[#006400]" : ""}>
-                  {item.weight}%
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant={item.completed ? "default" : "outline"} className={item.completed ? "bg-[#006400]" : ""}>
+                    {item.weight}%
+                  </Badge>
+                  {!item.completed && item.fix_route && (
+                    <Link to={item.fix_route}>
+                      <Button size="sm" variant="destructive" className="rounded-lg text-xs" data-testid={`fix-now-${item.id}`}>
+                        Fix Now
+                      </Button>
+                    </Link>
+                  )}
+                </div>
               </div>
             ))}
           </CardContent>

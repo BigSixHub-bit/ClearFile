@@ -173,21 +173,44 @@ async def get_tcc_progress(user: dict = Depends(get_current_user)):
     tx_count = await db.transactions.count_documents({"user_id": user_id})
     receipts_count = await db.receipts.count_documents({"user_id": user_id})
     bank_count = await db.bank_accounts.count_documents({"user_id": user_id})
+    has_tin = bool(user.get("tin_number"))
 
-    # Check TCC requirements
+    # Check if taxes assessed and paid (has income + expenses logged)
+    income_txs = await db.transactions.count_documents({"user_id": user_id, "type": "income"})
+    expense_txs = await db.transactions.count_documents({"user_id": user_id, "type": "expense"})
+    taxes_assessed = income_txs >= 3 and expense_txs >= 3
+
+    # Check annual returns (sufficient records)
+    annual_returns_filed = tx_count >= 15 and receipts_count >= 2
+
     checklist = [
-        {"id": "tin", "item": "Obtain Tax Identification Number (TIN)", "completed": True, "weight": 15,
-         "description": "Register with FIRS Joint Tax Board to get your TIN"},
-        {"id": "returns_filed", "item": "File annual tax returns", "completed": tx_count >= 10, "weight": 25,
-         "description": "File returns for at least the last tax year"},
-        {"id": "taxes_paid", "item": "Pay all outstanding taxes", "completed": tx_count >= 5, "weight": 25,
-         "description": "No outstanding tax liabilities"},
-        {"id": "records", "item": "Maintain proper financial records", "completed": tx_count >= 10 and receipts_count >= 3, "weight": 15,
-         "description": "Keep organized records of income and expenses"},
-        {"id": "bank_linked", "item": "Link bank account for verification", "completed": bank_count > 0, "weight": 10,
-         "description": "Verify income through bank statements"},
-        {"id": "no_penalties", "item": "No outstanding penalties or fines", "completed": True, "weight": 10,
-         "description": "Resolve all penalty notices from FIRS or state revenue"}
+        {
+            "id": "tin",
+            "item": "TIN Linked",
+            "completed": has_tin,
+            "weight": 25,
+            "description": "Add your Tax Identification Number to your profile",
+            "fix_route": "/settings",
+            "fix_label": "Add TIN"
+        },
+        {
+            "id": "taxes_paid",
+            "item": "Current Year Taxes Assessed & Paid",
+            "completed": taxes_assessed,
+            "weight": 40,
+            "description": "Ensure your Net Taxable Profit has a corresponding payment logged",
+            "fix_route": "/transactions",
+            "fix_label": "Log Payment"
+        },
+        {
+            "id": "returns_filed",
+            "item": "Annual Returns Filed",
+            "completed": annual_returns_filed,
+            "weight": 35,
+            "description": "Complete your income statement with all transactions and receipts",
+            "fix_route": "/transactions",
+            "fix_label": "Complete Records"
+        }
     ]
 
     total_weight = sum(item["weight"] for item in checklist)
