@@ -89,6 +89,8 @@ async def startup():
     await db.receipts.create_index("user_id")
     await db.chat_history.create_index([("user_id", 1), ("session_id", 1)])
     await db.notifications.create_index([("user_id", 1), ("created_at", -1)])
+    await db.transaction_memory.create_index([("user_id", 1), ("receiver_account", 1)], unique=True)
+    await db.pending_categorizations.create_index([("user_id", 1), ("created_at", -1)])
 
     # Initialize storage
     try:
