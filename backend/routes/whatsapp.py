@@ -1,11 +1,13 @@
-"""WhatsApp Expense Logging - Webhook + NLP Engine"""
+"""WhatsApp Expense Logging - Meta Business API Integration"""
 import uuid
 import os
 import re
 import logging
 import json
+import httpx
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, Query
+from fastapi.responses import PlainTextResponse
 from typing import Optional
 
 from database import db
@@ -16,11 +18,17 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# Meta WhatsApp API config
+WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN", "")
+WHATSAPP_PHONE_NUMBER_ID = os.environ.get("WHATSAPP_PHONE_NUMBER_ID", "")
+WHATSAPP_VERIFY_TOKEN = os.environ.get("WHATSAPP_VERIFY_TOKEN", "clearfileng_webhook_verify_2024")
+WHATSAPP_API_URL = f"https://graph.facebook.com/v21.0/{WHATSAPP_PHONE_NUMBER_ID}/messages"
+
 # Nigerian financial text patterns
 AMOUNT_PATTERNS = [
     r'(\d+(?:,\d{3})*(?:\.\d+)?)\s*(?:naira|ngn|#)',
     r'(?:N|₦|#)\s*(\d+(?:,\d{3})*(?:\.\d+)?)',
-    r'(\d+)k\b',
+    r'(\d+(?:\.\d+)?)\s*k\b',
     r'(\d+(?:,\d{3})*(?:\.\d+)?)',
 ]
 
@@ -90,62 +98,136 @@ def parse_expense_message(text: str) -> dict:
     }
 
 
+async def send_whatsapp_message(to: str, text: str):
+    """Send a WhatsApp message via Meta API."""
+    if not WHATSAPP_TOKEN or not WHATSAPP_PHONE_NUMBER_ID:
+        logger.warning("WhatsApp API not configured, skipping message send")
+        return False
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                WHATSAPP_API_URL,
+                headers={
+                    "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "messaging_product": "whatsapp",
+                    "recipient_type": "individual",
+                    "to": to,
+                    "type": "text",
+                    "text": {"body": text}
+                },
+                timeout=30.0
+            )
+            result = response.json()
+            if response.status_code == 200:
+                logger.info(f"WhatsApp message sent to {to}")
+                return True
+            else:
+                logger.error(f"WhatsApp send failed: {result}")
+                return False
+    except Exception as e:
+        logger.error(f"WhatsApp send error: {e}")
+        return False
+
+
+@router.get("/whatsapp/webhook")
+async def verify_webhook(request: Request):
+    """Meta webhook verification (GET request)."""
+    mode = request.query_params.get("hub.mode")
+    token = request.query_params.get("hub.verify_token")
+    challenge = request.query_params.get("hub.challenge")
+
+    if mode == "subscribe" and token == WHATSAPP_VERIFY_TOKEN:
+        logger.info("WhatsApp webhook verified successfully")
+        return PlainTextResponse(content=challenge, status_code=200)
+
+    raise HTTPException(status_code=403, detail="Verification failed")
+
+
 @router.post("/whatsapp/webhook")
 async def whatsapp_webhook(request: Request):
     """
-    Receive incoming WhatsApp messages via webhook (Twilio/Meta format).
+    Receive incoming WhatsApp messages via Meta webhook.
     Parses Nigerian financial text and creates transactions.
     """
     try:
-        content_type = request.headers.get("content-type", "")
+        payload = await request.json()
 
-        if "application/json" in content_type:
-            payload = await request.json()
-        else:
-            # Twilio sends form-encoded
-            form = await request.form()
-            payload = dict(form)
+        # Extract message from Meta webhook format
+        message_body = ""
+        sender = ""
 
-        # Extract message details (support both Twilio and Meta formats)
-        sender = payload.get("From") or payload.get("WaId") or ""
-        message_body = payload.get("Body") or ""
-
-        # Meta webhook format
-        if not message_body and "entry" in payload:
-            try:
-                entry = payload["entry"][0]
-                changes = entry["changes"][0]
-                messages = changes["value"].get("messages", [])
-                if messages:
-                    message_body = messages[0].get("text", {}).get("body", "")
-                    sender = messages[0].get("from", "")
-            except (IndexError, KeyError):
-                pass
+        if "entry" in payload:
+            for entry in payload.get("entry", []):
+                for change in entry.get("changes", []):
+                    value = change.get("value", {})
+                    messages = value.get("messages", [])
+                    for msg in messages:
+                        if msg.get("type") == "text":
+                            message_body = msg["text"]["body"]
+                            sender = msg["from"]
+                            break
+                    if message_body:
+                        break
+                if message_body:
+                    break
 
         if not message_body:
-            return {"status": "ok", "message": "No message body"}
+            return {"status": "ok", "message": "No text message"}
 
         # Clean phone number
-        phone = re.sub(r'[^\d+]', '', sender).replace("whatsapp:", "")
+        phone = re.sub(r'[^\d]', '', sender)
 
         # Find user by linked phone
-        user = await db.users.find_one({"whatsapp_phone": phone})
-        if not user:
-            # Try matching without country code
-            phone_short = phone[-10:] if len(phone) > 10 else phone
-            user = await db.users.find_one({"whatsapp_phone": {"$regex": phone_short}})
+        user = await db.users.find_one({"whatsapp_phone": {"$regex": phone[-10:]}})
 
         if not user:
-            logger.warning(f"WhatsApp message from unlinked number: {phone}")
-            return {"status": "ok", "message": "User not found", "reply": "Please link your WhatsApp number in the ClearFile NG app settings first."}
+            # Send back a message asking them to link
+            await send_whatsapp_message(
+                sender,
+                "Welcome to ClearFile NG! Please link your WhatsApp number in the app settings first.\n\nVisit: https://tax-naira.preview.emergentagent.com/settings"
+            )
+            return {"status": "ok", "message": "User not found, sent link instructions"}
 
         user_id = str(user["_id"])
+
+        # Check for commands
+        text_lower = message_body.lower().strip()
+        if text_lower in ["hi", "hello", "hey", "help"]:
+            await send_whatsapp_message(
+                sender,
+                "Hey! I'm your ClearFile NG expense bot.\n\nJust text your expenses like:\n• \"Paid 5k for MTN data\"\n• \"Spent N15,000 on fuel\"\n• \"Office rent 200k\"\n\nI'll log them automatically and flag tax-deductible ones!"
+            )
+            return {"status": "ok", "message": "Sent help message"}
+
+        if text_lower in ["balance", "summary", "total"]:
+            # Send a quick summary
+            expenses = await db.transactions.find(
+                {"user_id": user_id, "type": "expense"},
+                {"_id": 0, "amount": 1, "category": 1}
+            ).limit(1000).to_list(1000)
+
+            total = sum(tx["amount"] for tx in expenses)
+            deductible = sum(tx["amount"] for tx in expenses if tx.get("category") in DEDUCTIBLE_CATEGORIES)
+
+            await send_whatsapp_message(
+                sender,
+                f"Your ClearFile NG Summary:\n\nTotal Expenses: N{total:,.0f}\nTax Deductible: N{deductible:,.0f}\nTax Savings: ~N{deductible * 0.2:,.0f}\n\nKeep logging to reduce your tax bill!"
+            )
+            return {"status": "ok", "message": "Sent summary"}
 
         # Parse the expense
         parsed = parse_expense_message(message_body)
 
         if not parsed["amount"] or parsed["amount"] <= 0:
-            return {"status": "ok", "reply": "I couldn't understand the amount. Try: 'Paid 5k for MTN data' or 'Spent N15,000 on fuel'"}
+            await send_whatsapp_message(
+                sender,
+                "I couldn't understand the amount. Try:\n• \"Paid 5k for MTN data\"\n• \"Spent N15,000 on fuel\"\n• \"Office rent 200k\""
+            )
+            return {"status": "ok", "reply": "Could not parse amount"}
 
         # Create transaction
         tx_doc = {
@@ -168,29 +250,19 @@ async def whatsapp_webhook(request: Request):
         await db.transactions.insert_one(tx_doc)
         tx_doc.pop("_id", None)
 
-        # Calculate updated tax estimate
-        business_type = user.get("business_type", "freelancer")
-        all_expenses = await db.transactions.find(
-            {"user_id": user_id, "type": "expense"},
-            {"_id": 0, "amount": 1, "category": 1}
-        ).limit(1000).to_list(1000)
-
-        deductible_total = sum(
-            tx["amount"] for tx in all_expenses
-            if tx.get("category") in DEDUCTIBLE_CATEGORIES
-        )
-
-        # Build confirmation reply
+        # Build and send confirmation
         deductible_msg = " Your estimated tax has been reduced." if parsed["is_deductible"] else ""
-        reply = f"Done! N{parsed['amount']:,.0f} logged under {parsed['category']}.{deductible_msg}"
+        badge = " [Tax Deductible]" if parsed["is_deductible"] else ""
+        reply = f"Done! N{parsed['amount']:,.0f} logged under {parsed['category']}.{badge}{deductible_msg}"
 
-        logger.info(f"WhatsApp expense logged: {parsed['amount']} - {parsed['category']} for user {user_id}")
+        await send_whatsapp_message(sender, reply)
+
+        logger.info(f"WhatsApp expense logged: N{parsed['amount']:,.0f} - {parsed['category']} for user {user_id}")
 
         return {
             "status": "ok",
             "reply": reply,
-            "transaction": tx_doc,
-            "total_deductible": deductible_total
+            "transaction_id": tx_doc["id"]
         }
 
     except Exception as e:
@@ -221,11 +293,17 @@ async def link_whatsapp(request: Request, user: dict = Depends(get_current_user)
         {"$set": {"whatsapp_phone": phone, "whatsapp_linked": True}}
     )
 
+    # Send welcome message
+    await send_whatsapp_message(
+        phone.replace("+", ""),
+        "Your ClearFile NG account is linked! You can now log expenses by texting here.\n\nTry: \"Paid 5k for MTN data\"\n\nType \"help\" for more commands."
+    )
+
     return {
         "message": "WhatsApp linked successfully",
         "phone": phone,
-        "bot_number": "+2349000000000",
-        "wa_link": f"https://wa.me/2349000000000?text=Hi%20ClearFile%20NG!%20Link%20my%20account"
+        "bot_number": WHATSAPP_PHONE_NUMBER_ID,
+        "wa_link": f"https://wa.me/{WHATSAPP_PHONE_NUMBER_ID}?text=Hi%20ClearFile%20NG!%20Link%20my%20account"
     }
 
 
@@ -235,14 +313,14 @@ async def get_whatsapp_status(user: dict = Depends(get_current_user)):
     return {
         "linked": user.get("whatsapp_linked", False),
         "phone": user.get("whatsapp_phone", ""),
-        "bot_number": "+2349000000000",
-        "wa_link": "https://wa.me/2349000000000?text=Hi%20ClearFile%20NG!%20Link%20my%20account"
+        "bot_number": WHATSAPP_PHONE_NUMBER_ID,
+        "wa_link": f"https://wa.me/{WHATSAPP_PHONE_NUMBER_ID}?text=Hi%20ClearFile%20NG!%20Link%20my%20account"
     }
 
 
 @router.post("/whatsapp/test-parse")
 async def test_parse_message(request: Request, user: dict = Depends(get_current_user)):
-    """Test the NLP parsing without creating a transaction. Useful for debugging."""
+    """Test the NLP parsing without creating a transaction."""
     data = await request.json()
     text = data.get("text", "")
 
