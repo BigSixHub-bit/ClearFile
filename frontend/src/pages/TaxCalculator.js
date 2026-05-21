@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import Layout from '../components/Layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
@@ -18,6 +19,7 @@ const API = process.env.REACT_APP_BACKEND_URL;
 export default function TaxCalculator() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const [taxData, setTaxData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showFilingModal, setShowFilingModal] = useState(false);
@@ -44,12 +46,12 @@ export default function TaxCalculator() {
 
   const handleAIGuide = () => {
     setShowFilingModal(false);
-    toast.info('AI Tax Guide coming soon! We\'ll walk you through FIRS filing step-by-step.');
+    navigate('/ai-tax-guide');
   };
 
   const handleHireExpert = () => {
     setShowFilingModal(false);
-    toast.info('Expert matching coming soon! We\'re onboarding verified Pan-African tax professionals.');
+    navigate('/hire-expert');
   };
 
   const handleSendToAccountant = () => {

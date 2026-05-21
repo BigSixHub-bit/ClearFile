@@ -26,6 +26,7 @@ from routes.notifications import router as notifications_router
 from routes.insights import router as insights_router
 from routes.tax_engine import router as tax_engine_router
 from routes.whatsapp import router as whatsapp_router
+from routes.filing import router as filing_router
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -52,6 +53,7 @@ api_router.include_router(notifications_router)
 api_router.include_router(insights_router)
 api_router.include_router(tax_engine_router)
 api_router.include_router(whatsapp_router)
+api_router.include_router(filing_router)
 
 
 # Health check endpoints
