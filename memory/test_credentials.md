@@ -6,10 +6,22 @@
 - Role: admin
 - Plan: Business
 
-## Admin Panel
-- URL: /admin (only visible to admin role)
-- Features: Stats, Expert Requests management, User management
-
 ## Test User (create via registration)
 - Register with any email/password
 - Default plan: Starter
+
+## API Endpoints
+- POST /api/auth/register
+- POST /api/auth/login
+- POST /api/auth/logout
+- GET /api/auth/me
+- GET /api/dashboard
+- GET /api/transactions
+- POST /api/transactions
+- GET /api/bank-accounts
+- POST /api/bank-accounts
+- GET /api/tax-calculation
+- POST /api/chat
+- POST /api/receipts/upload
+- GET /api/insights/recurring
+- GET /api/insights/spending

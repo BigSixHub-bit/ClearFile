@@ -1,13 +1,20 @@
 """Admin Panel - Expert request management, user management, dashboard stats"""
+import uuid
 import logging
+import asyncio
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends, Request
 from bson import ObjectId
 
 from database import db
+from config import RESEND_API_KEY, SENDER_EMAIL, FRONTEND_URL
 from utils.auth import get_current_user
 
 logger = logging.getLogger(__name__)
+
+if RESEND_API_KEY:
+    import resend
+    resend.api_key = RESEND_API_KEY
 
 router = APIRouter(prefix="/admin")
 
@@ -109,7 +116,6 @@ async def update_request_status(request_id: str, request: Request, user: dict = 
             "completed": "Your expert filing request has been completed.",
             "cancelled": "Your expert request has been cancelled."
         }
-        import uuid
         await db.notifications.insert_one({
             "id": str(uuid.uuid4()),
             "user_id": req["user_id"],
@@ -119,6 +125,89 @@ async def update_request_status(request_id: str, request: Request, user: dict = 
             "read": False,
             "created_at": datetime.now(timezone.utc).isoformat()
         })
+
+        # Send email notification via Resend
+        user_email = req.get("contact_email") or req.get("user_email")
+        if user_email and RESEND_API_KEY:
+            try:
+                expert_info = update_fields.get("matched_expert", {})
+                expert_name = expert_info.get("name", data.get("expert_name", "a tax professional"))
+                expert_email_addr = expert_info.get("email", "")
+                expert_phone = expert_info.get("phone", "")
+                expert_specialty = expert_info.get("specialty", "Tax Filing")
+
+                email_subject_map = {
+                    "reviewing": "Your ClearFile NG Expert Request is Being Reviewed",
+                    "matched": f"You've Been Matched with {expert_name}!",
+                    "in_progress": "Your Tax Expert is Working on Your Filing",
+                    "completed": "Your Expert Filing is Complete",
+                    "cancelled": "Your Expert Request Has Been Cancelled"
+                }
+
+                if new_status == "matched":
+                    html_body = f"""
+                    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #FAFAFA;">
+                        <div style="background: #006400; padding: 24px 30px; border-radius: 12px 12px 0 0;">
+                            <h1 style="color: white; margin: 0; font-size: 22px;">ClearFile NG</h1>
+                        </div>
+                        <div style="padding: 30px; background: white; border: 1px solid #e2e8f0;">
+                            <h2 style="color: #022c22; margin-top: 0;">You've been matched!</h2>
+                            <p style="color: #555; line-height: 1.6;">
+                                Great news, {req.get('user_name', 'there')}! We've found a verified tax professional for you.
+                            </p>
+                            <div style="background: #E8F5E9; border: 1px solid #A5D6A7; border-radius: 12px; padding: 20px; margin: 20px 0;">
+                                <h3 style="color: #006400; margin-top: 0;">Your Expert</h3>
+                                <p style="margin: 5px 0; color: #333;"><strong>{expert_name}</strong></p>
+                                <p style="margin: 5px 0; color: #555;">Specialty: {expert_specialty}</p>
+                                {f'<p style="margin: 5px 0; color: #555;">Email: {expert_email_addr}</p>' if expert_email_addr else ''}
+                                {f'<p style="margin: 5px 0; color: #555;">Phone: {expert_phone}</p>' if expert_phone else ''}
+                            </div>
+                            <p style="color: #555; line-height: 1.6;">
+                                Your expert will reach out to you within 24 hours. In the meantime, make sure your ClearFile NG records are up to date.
+                            </p>
+                            <div style="text-align: center; margin: 25px 0;">
+                                <a href="{FRONTEND_URL}/dashboard" style="display: inline-block; background: #006400; color: white; padding: 14px 30px; text-decoration: none; border-radius: 10px; font-weight: bold;">
+                                    Go to Dashboard
+                                </a>
+                            </div>
+                        </div>
+                        <div style="padding: 15px 30px; text-align: center; color: #999; font-size: 12px;">
+                            ClearFile NG - Nigerian Tax & Expense Management
+                        </div>
+                    </div>
+                    """
+                else:
+                    html_body = f"""
+                    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #FAFAFA;">
+                        <div style="background: #006400; padding: 24px 30px; border-radius: 12px 12px 0 0;">
+                            <h1 style="color: white; margin: 0; font-size: 22px;">ClearFile NG</h1>
+                        </div>
+                        <div style="padding: 30px; background: white; border: 1px solid #e2e8f0;">
+                            <h2 style="color: #022c22; margin-top: 0;">Expert Request Update</h2>
+                            <p style="color: #555; line-height: 1.6;">
+                                {status_messages.get(new_status, f'Your request status has been updated to {new_status}.')}
+                            </p>
+                            <div style="text-align: center; margin: 25px 0;">
+                                <a href="{FRONTEND_URL}/dashboard" style="display: inline-block; background: #006400; color: white; padding: 14px 30px; text-decoration: none; border-radius: 10px; font-weight: bold;">
+                                    View on Dashboard
+                                </a>
+                            </div>
+                        </div>
+                        <div style="padding: 15px 30px; text-align: center; color: #999; font-size: 12px;">
+                            ClearFile NG - Nigerian Tax & Expense Management
+                        </div>
+                    </div>
+                    """
+
+                await asyncio.to_thread(resend.Emails.send, {
+                    "from": SENDER_EMAIL,
+                    "to": [user_email],
+                    "subject": email_subject_map.get(new_status, "ClearFile NG - Expert Request Update"),
+                    "html": html_body
+                })
+                logger.info(f"Email sent to {user_email} for status: {new_status}")
+            except Exception as e:
+                logger.error(f"Failed to send status email: {e}")
 
     return {"message": f"Status updated to {new_status}", "request_id": request_id}
 
