@@ -6,7 +6,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { 
   LayoutDashboard, Receipt, Calculator, FileText, BookOpen, 
   Settings, MessageCircle, LogOut, Menu, Shield, Bell, BellRing,
-  Award, TrendingUp, Landmark
+  Award, TrendingUp, Landmark, ShieldCheck
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Switch } from '../components/ui/switch';
@@ -134,6 +134,11 @@ export default function Layout({ children }) {
     { to: '/chat', icon: MessageCircle, label: t('chatAssistant') },
     { to: '/settings', icon: Settings, label: t('settings') },
   ];
+
+  // Add admin link for admin users
+  if (user?.role === 'admin') {
+    navItems.push({ to: '/admin', icon: ShieldCheck, label: 'Admin Panel' });
+  }
 
   const NavContent = ({ mobile = false }) => (
     <div className={`flex flex-col h-full`}>

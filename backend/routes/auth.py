@@ -130,6 +130,7 @@ async def login(credentials: UserLogin, response: Response, request: Request):
         "subscription_plan": user.get("subscription_plan", "starter"),
         "onboarding_completed": user.get("onboarding_completed", False),
         "pidgin_mode": user.get("pidgin_mode", False),
+        "role": user.get("role", "user"),
         "created_at": user["created_at"]
     }
 
@@ -151,6 +152,7 @@ async def get_me(user: dict = Depends(get_current_user)):
         "onboarding_completed": user.get("onboarding_completed", False),
         "pidgin_mode": user.get("pidgin_mode", False),
         "email_verified": user.get("email_verified", False),
+        "role": user.get("role", "user"),
         "created_at": user.get("created_at", "")
     }
 
