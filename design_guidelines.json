@@ -1,83 +1,75 @@
 {
-  "theme": "LIGHT",
-  "archetype": "1 (Organic & Earthy / Trusting Fintech)",
+  "theme": "dark",
+  "archetype": "High-End Developer Tools / Swiss Brutalist Dark (Archetype 4/5 blend)",
   "colors": {
-    "primary": "#006400",
-    "primary_foreground": "#ffffff",
-    "secondary": "#E8F5E9",
-    "secondary_foreground": "#004d00",
-    "accent": "#FFD700",
-    "accent_foreground": "#422006",
-    "background": "#FAFAFA",
-    "surface": "#FFFFFF",
-    "destructive": "#ef4444",
-    "muted": "#f1f5f9",
-    "text": {
-      "heading": "#022c22",
-      "body": "#334155",
-      "muted": "#64748b"
-    }
+    "background": "#050505",
+    "surface": "#111111",
+    "surface_secondary": "#0A0A0A",
+    "border": "#1E1E1E",
+    "primary": "#00C896",
+    "secondary": "#3B82F6",
+    "text_primary": "#FFFFFF",
+    "text_secondary": "#A1A1AA",
+    "glow_gradient": "linear-gradient(90deg, #00C896, #3B82F6, #8B5CF6)"
   },
   "typography": {
-    "heading_font": "Outfit",
-    "body_font": "Manrope",
-    "scale": {
-      "h1": "text-4xl sm:text-5xl tracking-tight font-bold",
-      "h2": "text-2xl sm:text-3xl tracking-tight font-semibold",
-      "h3": "text-xl sm:text-2xl tracking-tight font-semibold",
-      "h4": "text-lg sm:text-xl font-medium",
-      "body": "text-base leading-relaxed",
-      "small": "text-sm text-slate-500",
-      "overline": "text-xs tracking-[0.2em] uppercase font-bold text-[#006400]"
+    "headings": {
+      "font": "Clash Display, Satoshi, sans-serif",
+      "weights": ["400", "500", "600"],
+      "tracking": "tight"
+    },
+    "body": {
+      "font": "Inter, sans-serif",
+      "weights": ["400", "500"],
+      "tracking": "normal"
+    },
+    "numbers": {
+      "font": "Inter, monospace",
+      "variant": "tabular-nums"
     }
   },
-  "layout_and_spacing": {
-    "philosophy": "Generous Spacing, Mobile-first, Progressive Disclosure",
-    "grid": "Control Room grid for Dashboard (grid-cols-1 md:grid-cols-3 lg:grid-cols-4), gap-4 or gap-6",
-    "padding": "Containers with borders must use p-6 or p-8 internal padding",
-    "radius": "rounded-2xl for main cards, rounded-xl for inner elements",
-    "shadows": "Ambient + direct shadows (e.g., shadow-sm for cards, shadow-md hover)"
+  "spacing_and_layout": {
+    "dashboard_grid": "Control Room Grid (Dense, gap-4 to gap-6, rigid constraints)",
+    "marketing_grid": "Tetris Grid (Asymmetric, gap-8 to gap-12)",
+    "corners": "rounded-[20px] to rounded-[24px]"
   },
-  "components": {
-    "cards": "Flat background, 1px subtle border (border-slate-200), slight lift (-translate-y-1) on hover with shadow-lg. Do not overuse.",
-    "buttons": "Primary buttons use #006400 bg with white text. Hover state: bg-[#004d00] text-white. Use rounded-xl or rounded-full.",
-    "inputs": "Shadcn defaults with custom focus ring (focus:ring-[#006400]/20). Left-aligned labels.",
-    "navigation": "Bottom tab bar for mobile, Sidebar or Top Navbar with backdrop-blur-xl (Glassmorphism) for desktop.",
-    "charts": "Shadcn Recharts components. Use #006400 for income, #ef4444 for expenses, #FFD700 for taxes."
+  "ui_elements": {
+    "cards": "Flat background (#111111), 1px solid border (#1E1E1E), no heavy drop shadows, soft ambient inner glow on hover",
+    "buttons": "Primary: Solid #00C896 with black text or glowing gradient border. Secondary: transparent with 1px border. Hover states: slight lift, brighter border.",
+    "glassmorphism": "Crystal style: bg-[#050505]/60, backdrop-blur-xl, border-[#1E1E1E]",
+    "borders": "Always 1px. Never use thick borders. Use Tailwind class border-[#1E1E1E]."
   },
-  "motion_and_interactions": {
-    "hover": "All interactive elements must have hover and focus states (higher contrast).",
-    "transitions": "transition: transform 0.2s ease, opacity 0.2s ease",
-    "data_testid": "MANDATORY on all buttons, links, inputs, and key informational elements (e.g., data-testid='link-bank-button', data-testid='tax-health-score')."
+  "animations": {
+    "hover": "Subtle border color shifts, 0.2s ease, micro-lift (-translate-y-1)",
+    "charts": "Smooth drawing animations, glow on active data points",
+    "page": "Fade in, staggered entrance for grid items"
   },
-  "icons": {
-    "library": "lucide-react"
-  },
-  "media": {
-    "avatars": [
+  "images_and_media": {
+    "hero_backgrounds": [
       {
-        "url": "https://images.unsplash.com/photo-1614023342667-6f060e9d1e04?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1ODB8MHwxfHNlYXJjaHwzfHxuaWdlcmlhbiUyMGJ1c2luZXNzJTIwb3duZXIlMjBzbWlsaW5nJTIwcG9ydHJhaXR8ZW58MHx8fHwxNzc1MDQxOTE1fDA&ixlib=rb-4.1.0&q=85",
-        "description": "User Avatar - Nigerian business owner profile picture"
+        "url": "https://static.prod-images.emergentagent.com/jobs/231347b4-dc85-4484-a3e8-fe9b72477bef/images/aa2d11d8f0f35a0722e24c7bfc3a07431b571881756057e937fa0eed77b8d7bd.png",
+        "description": "Minimalist dark abstract background with soft glowing neon lines (use in Hero section or login screen)"
+      },
+      {
+        "url": "https://static.prod-images.emergentagent.com/jobs/231347b4-dc85-4484-a3e8-fe9b72477bef/images/6eb9cac280f78e4a7443d42ef902e1961aa41dcd64c7e1f90faba8d4e7e289d4.png",
+        "description": "Dark gradient texture for AI insights panel backgrounds"
       }
     ],
-    "illustrations": [
-      {
-        "url": "https://images.unsplash.com/photo-1599061477170-37d027da2a8c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1ODB8MHwxfHNlYXJjaHwxfHxuaWdlcmlhbiUyMGJ1c2luZXNzJTIwb3duZXIlMjBzbWlsaW5nJTIwcG9ydHJhaXR8ZW58MHx8fHwxNzc1MDQxOTE1fDA&ixlib=rb-4.1.0&q=85",
-        "description": "Tax Expert / Support Avatar"
-      }
+    "avatars": [
+      "https://images.unsplash.com/photo-1676989880361-091e12efc056?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1Mjh8MHwxfHNlYXJjaHw0fHxwcm9mZXNzaW9uYWwlMjBidXNpbmVzcyUyMHBvcnRyYWl0fGVufDB8fHx8MTc3OTQ5NDA4N3ww&ixlib=rb-4.1.0&q=85",
+      "https://images.unsplash.com/photo-1560250097-0b93528c311a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1Mjh8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBidXNpbmVzcyUyMHBvcnRyYWl0fGVufDB8fHx8MTc3OTQ5NDA4N3ww&ixlib=rb-4.1.0&q=85",
+      "https://images.pexels.com/photos/28442317/pexels-photo-28442317.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1Mjh8MHwxfHNlYXJjaHwzfHxwcm9mZXNzaW9uYWwlMjBidXNpbmVzcyUyMHBvcnRyYWl0fGVufDB8fHx8MTc3OTQ5NDA4N3ww&ixlib=rb-4.1.0&q=85"
     ]
   },
-  "specific_features": {
-    "tax_health_score": "Render as a circular progress chart or prominent gauge. Colors: #006400 (80-100), #FFD700 (50-79), #ef4444 (0-49).",
-    "pidgin_toggle": "Small switch in the navigation header or settings. Label 'Pidgin / EN'.",
-    "currency": "Use ₦ symbol universally."
+  "component_instructions": {
+    "navigation": "Minimal sidebar layout. Do not crowd the header. Active states get a subtle glowing left-border or background tint.",
+    "charts": "Use Recharts with dark mode styling. Hide grid lines or make them very faint (#1E1E1E). Use primary accent (#00C896) for main data lines with a drop-shadow glow.",
+    "data_display": "Always use tabular-nums class for metrics/balances. Positive numbers in #00C896, neutral in text-primary, warnings/alerts in #8B5CF6 or red if severe.",
+    "testing": "All interactive elements MUST include a data-testid attribute in kebab-case."
   },
-  "instructions_to_main_agent": [
-    "Follow this JSON strictly. Map colors to Tailwind arbitrary values where necessary (e.g., bg-[#006400]).",
-    "Ensure all text has a minimum WCAG AA contrast ratio against its background.",
-    "Implement Shadcn UI for complex inputs like dropdowns, date pickers, tables, and dialogs. Do NOT use HTML `<select>`.",
-    "Create a responsive, mobile-first dashboard following the 'Control Room' grid strategy.",
-    "MANDATORY: Include `data-testid` on all interactive and functional elements.",
-    "Focus on building a friendly and non-intimidating user experience that simplifies Nigerian tax laws."
-  ]
+  "specific_page_rules": {
+    "dashboard": "AI Financial Command Center. Replace 'Add Income' with 'New Revenue' and 'Record Expense'. Highlight AI Insights with the glow_gradient border or subtle background texture.",
+    "landing_page": "High visual impact. Use the hero_background image. Bold headlines (Clash Display/Satoshi). Overlapping bento layouts. Dark gradient overlays to ensure text readability."
+  }
 }
