@@ -22,11 +22,48 @@ export default function AITaxGuide() {
   const [sessionId, setSessionId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [completedSteps, setCompletedSteps] = useState(new Set());
+  const [unlocked, setUnlocked] = useState(false);
+  const [checkingAccess, setCheckingAccess] = useState(true);
 
   const totalSteps = 6;
 
-  useEffect(() => { fetchStep(step); // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step]);
+  useEffect(() => {
+    checkAccess();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (unlocked) fetchStep(step);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, unlocked]);
+
+  const checkAccess = async () => {
+    try {
+      const { data } = await axios.get(`${API}/api/payments/ai-guide/status`, { withCredentials: true });
+      setUnlocked(data.unlocked);
+      if (data.unlocked) setCheckingAccess(false);
+      else setCheckingAccess(false);
+    } catch (e) { setCheckingAccess(false); }
+  };
+
+  const handleUnlock = async () => {
+    try {
+      const { data } = await axios.post(`${API}/api/payments/ai-guide/initialize`, {
+        callback_url: `${window.location.origin}/ai-tax-guide?unlocked=true`
+      }, { withCredentials: true });
+
+      if (data.already_unlocked || data.unlocked || data.mock) {
+        setUnlocked(true);
+        toast.success('AI Guide unlocked!');
+        return;
+      }
+      if (data.authorization_url) {
+        window.location.href = data.authorization_url;
+      }
+    } catch (e) {
+      toast.error('Payment failed. Try again.');
+    }
+  };
 
   const fetchStep = async (s) => {
     setLoading(true);
@@ -64,16 +101,35 @@ export default function AITaxGuide() {
       <div className="space-y-6 pb-20 lg:pb-0">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/tax-calculator')} className="rounded-xl" data-testid="guide-back-btn">
+          <button onClick={() => navigate('/tax-calculator')} className="btn-ghost p-2 rounded-xl" data-testid="guide-back-btn">
             <ArrowLeft className="w-5 h-5" />
-          </Button>
+          </button>
           <div>
-            <h1 className="text-2xl font-bold text-white" style={{ fontFamily: 'Clash Display, Satoshi, sans-serif' }}>
-              AI Tax Filing Guide
-            </h1>
+            <h1 className="text-2xl font-display font-semibold text-white">AI Tax Filing Guide</h1>
             <p className="text-[#A1A1AA] text-sm">Step-by-step FIRS walkthrough with your data</p>
           </div>
         </div>
+
+        {/* Payment Gate */}
+        {checkingAccess ? (
+          <div className="flex items-center justify-center h-48"><Loader2 className="w-8 h-8 animate-spin text-[#00C896]" /></div>
+        ) : !unlocked ? (
+          <div className="card-dark p-8 text-center animate-fade-in">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#00C896] to-[#3B82F6] flex items-center justify-center mx-auto mb-4">
+              <Bot className="w-8 h-8 text-black" />
+            </div>
+            <h2 className="text-xl font-display font-semibold text-white mb-2">Unlock AI Tax Guide</h2>
+            <p className="text-[#A1A1AA] text-sm mb-1 max-w-sm mx-auto">
+              Let ClearFile AI walk you step-by-step through the FIRS portal using your exact financial data.
+            </p>
+            <p className="text-2xl font-display font-semibold text-white mb-6 mt-4">₦70,000</p>
+            <button onClick={handleUnlock} className="btn-primary px-8 py-3 text-sm inline-flex items-center gap-2" data-testid="unlock-ai-guide-btn">
+              <Sparkles className="w-4 h-4" /> Unlock AI Guide
+            </button>
+            <p className="text-xs text-[#555] mt-4">One-time payment. Includes personalized AI advice for each step.</p>
+          </div>
+        ) : (
+          <>
 
         {/* Progress Stepper */}
         <div className="flex items-center justify-between gap-1 px-2">
@@ -244,6 +300,8 @@ export default function AITaxGuide() {
               </Button>
             </div>
           </>
+        )}
+        </>
         )}
       </div>
     </Layout>

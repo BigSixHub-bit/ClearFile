@@ -297,7 +297,7 @@ export default function TaxCalculator() {
                     Let ClearFile AI walk you step-by-step through the FIRS portal using this exact data.
                   </p>
                   <span className="inline-block mt-2 text-xs font-bold text-[#D4A017] bg-[#F59E0B]/10 px-2 py-1 rounded-lg border border-[#F59E0B]/20">
-                    ₦2,500 unlock
+                    ₦70,000 unlock
                   </span>
                 </div>
               </button>

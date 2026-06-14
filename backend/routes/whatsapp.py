@@ -1,68 +1,82 @@
-"""WhatsApp Expense Logging - Meta Business API Integration
-Features:
-1. Proactive Tagging: Ask users to categorize unlabeled bank transactions
-2. Transaction Memory: Remember categories by receiver account number
-3. Subscription Gate: Only Pro plan users can interact with the bot
+"""WhatsApp Conversational AI Backend for ClearFile NG
+MSME Transaction Guardrails:
+1. Reverse Co-mingling — Classify personal vs business from Mono bank feed
+2. Auto-Routing Owner Contributions — Journal entries from natural language
+3. Smart Invoice & Payment Reconciliation — Prevent double-counting
+4. Real-Time VAT & Tax Micro-Dashboard — Weekly digest, on-demand summary
+5. Subscription Gate — Pro plan only
+6. Transaction Memory — Remember categories by receiver account
 """
 import uuid
 import os
 import re
 import logging
 import httpx
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.responses import PlainTextResponse
 from typing import Optional
 
 from database import db
 from utils.auth import get_current_user
+from utils.tax import calculate_pita, calculate_cita
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Meta WhatsApp API config
 WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN", "")
 WHATSAPP_PHONE_NUMBER_ID = os.environ.get("WHATSAPP_PHONE_NUMBER_ID", "")
 WHATSAPP_VERIFY_TOKEN = os.environ.get("WHATSAPP_VERIFY_TOKEN", "clearfileng_webhook_verify_2024")
 WHATSAPP_API_URL = f"https://graph.facebook.com/v21.0/{WHATSAPP_PHONE_NUMBER_ID}/messages"
-
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://tax-naira.preview.emergentagent.com")
 
-# Nigerian financial text patterns
-AMOUNT_PATTERNS = [
-    r'(\d+(?:,\d{3})*(?:\.\d+)?)\s*(?:naira|ngn|#)',
-    r'(?:N|₦|#)\s*(\d+(?:,\d{3})*(?:\.\d+)?)',
-    r'(\d+(?:\.\d+)?)\s*k\b',
-    r'(\d+(?:,\d{3})*(?:\.\d+)?)',
-]
+# ========================
+# CONSTANTS
+# ========================
 
-# Category keywords mapping
 CATEGORY_KEYWORDS = {
-    "Telecommunications": ["mtn", "airtel", "glo", "9mobile", "data", "airtime", "recharge", "top-up", "topup"],
-    "Transport": ["uber", "bolt", "taxi", "fuel", "petrol", "diesel", "transport", "bus", "keke", "okada", "danfo"],
-    "Utilities": ["nepa", "phcn", "electricity", "light bill", "water bill", "dstv", "gotv", "startimes", "internet", "wifi", "isp"],
+    "Telecommunications": ["mtn", "airtel", "glo", "9mobile", "data", "airtime", "recharge", "topup"],
+    "Transport": ["uber", "bolt", "taxi", "fuel", "petrol", "diesel", "transport", "bus", "keke", "okada"],
+    "Utilities": ["nepa", "phcn", "electricity", "light bill", "water bill", "dstv", "gotv", "internet", "wifi"],
     "Rent": ["rent", "house rent", "office rent", "shop rent"],
-    "Food": ["food", "lunch", "dinner", "breakfast", "suya", "amala", "rice", "restaurant", "eat"],
-    "Equipment": ["laptop", "phone", "computer", "printer", "equipment", "tools", "generator", "inverter"],
-    "Marketing": ["ads", "advert", "facebook ads", "google ads", "flyer", "banner", "marketing", "promotion"],
+    "Food": ["food", "lunch", "dinner", "breakfast", "suya", "restaurant", "eat"],
+    "Equipment": ["laptop", "phone", "computer", "printer", "equipment", "generator", "inverter"],
+    "Marketing": ["ads", "advert", "facebook ads", "google ads", "marketing", "promotion"],
     "Professional Fees": ["lawyer", "accountant", "consultant", "legal", "audit"],
-    "Subscriptions": ["netflix", "spotify", "subscription", "saas", "software", "canva", "zoom"],
-    "Miscellaneous": []
+    "Subscriptions": ["netflix", "spotify", "subscription", "software", "canva", "zoom"],
 }
+
+PERSONAL_INDICATORS = [
+    "netflix", "spotify", "showmax", "amazon prime", "dstv", "gotv", "startimes",
+    "bet9ja", "betway", "sportybet", "nairabet", "1xbet",
+    "shoprite", "spar", "game", "pep", "primark",
+    "cinema", "gym", "spa", "salon", "barber",
+    "school fees", "tuition", "church", "tithe", "offering"
+]
 
 DEDUCTIBLE_CATEGORIES = {"Telecommunications", "Transport", "Utilities", "Rent", "Equipment", "Marketing", "Professional Fees", "Subscriptions"}
 
-# Valid categories for user replies
-VALID_CATEGORIES = list(CATEGORY_KEYWORDS.keys())
+VALID_CATEGORIES = list(CATEGORY_KEYWORDS.keys()) + ["Miscellaneous"]
 
+# Conversation states
+STATE_IDLE = "idle"
+STATE_AWAITING_CATEGORY = "awaiting_category"
+STATE_AWAITING_COMINGLE_REPLY = "awaiting_comingle"
+STATE_AWAITING_OWNER_CONTRIB = "awaiting_owner_contrib"
+STATE_AWAITING_INVOICE_MATCH = "awaiting_invoice_match"
+
+
+# ========================
+# HELPERS
+# ========================
 
 def parse_amount(text: str) -> Optional[float]:
     text_lower = text.lower().strip()
     k_match = re.search(r'(\d+(?:\.\d+)?)\s*k\b', text_lower)
     if k_match:
         return float(k_match.group(1)) * 1000
-    for pattern in AMOUNT_PATTERNS[:-1]:
+    for pattern in [r'(?:N|₦|#)\s*(\d+(?:,\d{3})*(?:\.\d+)?)', r'(\d+(?:,\d{3})*(?:\.\d+)?)\s*(?:naira|ngn)']:
         match = re.search(pattern, text_lower)
         if match:
             return float(match.group(1).replace(',', ''))
@@ -80,50 +94,84 @@ def categorize_text(text: str) -> str:
     return "Miscellaneous"
 
 
-def parse_expense_message(text: str) -> dict:
-    amount = parse_amount(text)
-    category = categorize_text(text)
-    is_deductible = category in DEDUCTIBLE_CATEGORIES
-    return {
-        "amount": amount,
-        "category": category,
-        "is_deductible": is_deductible,
-        "original_text": text,
-        "description": text.strip()[:200]
-    }
+def is_likely_personal(description: str) -> bool:
+    desc_lower = description.lower()
+    return any(indicator in desc_lower for indicator in PERSONAL_INDICATORS)
+
+
+def is_pro_user(user: dict) -> bool:
+    return user.get("subscription_plan", "starter") in ["pro", "growth", "business"]
 
 
 async def send_whatsapp_message(to: str, text: str):
-    """Send a WhatsApp message via Meta API."""
     if not WHATSAPP_TOKEN or not WHATSAPP_PHONE_NUMBER_ID:
-        logger.warning("WhatsApp API not configured, skipping message send")
-        return False
+        logger.warning(f"WA mock send to {to}: {text[:100]}")
+        return True
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 WHATSAPP_API_URL,
-                headers={
-                    "Authorization": f"Bearer {WHATSAPP_TOKEN}",
-                    "Content-Type": "application/json"
-                },
+                headers={"Authorization": f"Bearer {WHATSAPP_TOKEN}", "Content-Type": "application/json"},
+                json={"messaging_product": "whatsapp", "recipient_type": "individual", "to": to, "type": "text", "text": {"body": text}},
+                timeout=30.0
+            )
+            return response.status_code == 200
+    except Exception as e:
+        logger.error(f"WA send error: {e}")
+        return False
+
+
+async def send_whatsapp_buttons(to: str, body: str, buttons: list):
+    """Send interactive button message."""
+    if not WHATSAPP_TOKEN or not WHATSAPP_PHONE_NUMBER_ID:
+        logger.warning(f"WA mock buttons to {to}: {body[:80]}")
+        return True
+    try:
+        btn_payload = [{"type": "reply", "reply": {"id": b["id"], "title": b["title"][:20]}} for b in buttons[:3]]
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                WHATSAPP_API_URL,
+                headers={"Authorization": f"Bearer {WHATSAPP_TOKEN}", "Content-Type": "application/json"},
                 json={
-                    "messaging_product": "whatsapp",
-                    "recipient_type": "individual",
-                    "to": to,
-                    "type": "text",
-                    "text": {"body": text}
+                    "messaging_product": "whatsapp", "recipient_type": "individual", "to": to,
+                    "type": "interactive",
+                    "interactive": {
+                        "type": "button",
+                        "body": {"text": body},
+                        "action": {"buttons": btn_payload}
+                    }
                 },
                 timeout=30.0
             )
-            if response.status_code == 200:
-                logger.info(f"WhatsApp message sent to {to}")
-                return True
-            else:
-                logger.error(f"WhatsApp send failed: {response.json()}")
-                return False
+            return response.status_code == 200
     except Exception as e:
-        logger.error(f"WhatsApp send error: {e}")
-        return False
+        logger.error(f"WA buttons error: {e}")
+        # Fallback to text
+        btn_text = "\n".join(f"• Reply \"{b['title']}\"" for b in buttons)
+        return await send_whatsapp_message(to, f"{body}\n\n{btn_text}")
+
+
+async def get_user_state(user_id: str) -> dict:
+    state = await db.wa_conversation_state.find_one({"user_id": user_id})
+    if not state:
+        return {"state": STATE_IDLE, "data": {}}
+    return {"state": state.get("state", STATE_IDLE), "data": state.get("data", {})}
+
+
+async def set_user_state(user_id: str, state: str, data: dict = None):
+    await db.wa_conversation_state.update_one(
+        {"user_id": user_id},
+        {"$set": {"state": state, "data": data or {}, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True
+    )
+
+
+async def clear_user_state(user_id: str):
+    await db.wa_conversation_state.update_one(
+        {"user_id": user_id},
+        {"$set": {"state": STATE_IDLE, "data": {}}},
+        upsert=True
+    )
 
 
 # ========================
@@ -131,120 +179,248 @@ async def send_whatsapp_message(to: str, text: str):
 # ========================
 
 async def get_category_from_memory(user_id: str, receiver_account: str) -> Optional[str]:
-    """Check if we have a remembered category for this receiver account."""
     if not receiver_account:
         return None
-    memory = await db.transaction_memory.find_one({
-        "user_id": user_id,
-        "receiver_account": receiver_account
-    })
+    memory = await db.transaction_memory.find_one({"user_id": user_id, "receiver_account": receiver_account})
     return memory.get("category") if memory else None
 
 
 async def save_category_to_memory(user_id: str, receiver_account: str, category: str):
-    """Remember category for a receiver account number."""
     if not receiver_account:
         return
     await db.transaction_memory.update_one(
         {"user_id": user_id, "receiver_account": receiver_account},
-        {"$set": {
-            "category": category,
-            "updated_at": datetime.now(timezone.utc).isoformat()
-        },
+        {"$set": {"category": category, "updated_at": datetime.now(timezone.utc).isoformat()},
          "$setOnInsert": {"created_at": datetime.now(timezone.utc).isoformat()}},
         upsert=True
     )
 
 
 # ========================
-# PROACTIVE TAGGING
+# 1. REVERSE CO-MINGLING
 # ========================
 
-async def ask_for_category(user_id: str, phone: str, transaction_id: str, description: str, amount: float):
-    """Send a WhatsApp message asking user to categorize an unlabeled transaction."""
-    categories_list = "\n".join(f"{i+1}. {cat}" for i, cat in enumerate(VALID_CATEGORIES[:9]))
+async def handle_comingle_check(user_id: str, phone: str, tx_data: dict):
+    """Check if a bank transaction is personal or business and ask the user."""
+    description = tx_data.get("description", "")
+    amount = tx_data.get("amount", 0)
+    merchant = tx_data.get("merchant", description)
+    date = tx_data.get("date", datetime.now(timezone.utc).strftime("%b %d"))
+    tx_id = tx_data.get("id", str(uuid.uuid4()))
 
-    message = (
-        f"New transaction detected:\n"
-        f"Amount: N{amount:,.0f}\n"
-        f"Description: {description}\n\n"
-        f"What category is this? Reply with the number:\n{categories_list}\n\n"
-        f"Or type the category name."
-    )
+    if is_likely_personal(description):
+        # Flag as ambiguous — ask user
+        await set_user_state(user_id, STATE_AWAITING_COMINGLE_REPLY, {
+            "transaction_id": tx_id, "amount": amount, "description": description
+        })
 
-    # Store pending categorization request
-    await db.pending_categorizations.update_one(
-        {"user_id": user_id, "transaction_id": transaction_id},
-        {"$set": {
-            "phone": phone,
-            "description": description,
-            "amount": amount,
-            "created_at": datetime.now(timezone.utc).isoformat()
-        }},
-        upsert=True
-    )
-
-    await send_whatsapp_message(phone, message)
+        body = f"Hey! I noticed a debit of ₦{amount:,.0f} at {merchant} on {date}. Was this a personal expense or a business expense?"
+        await send_whatsapp_buttons(phone, body, [
+            {"id": "personal_expense", "title": "Personal Expense"},
+            {"id": "business_expense", "title": "Business Expense"}
+        ])
+        return True
+    return False
 
 
-async def handle_category_reply(user_id: str, phone: str, text: str) -> Optional[dict]:
-    """Check if user is replying to a category prompt."""
-    pending = await db.pending_categorizations.find_one(
-        {"user_id": user_id},
-        sort=[("created_at", -1)]
-    )
-    if not pending:
-        return None
+async def process_comingle_reply(user_id: str, phone: str, reply: str, state_data: dict):
+    """Process the user's reply to a co-mingling question."""
+    tx_id = state_data.get("transaction_id")
+    amount = state_data.get("amount", 0)
+    description = state_data.get("description", "")
+    reply_lower = reply.lower().strip()
 
-    # Parse category from reply
-    text_lower = text.lower().strip()
-    category = None
+    if "personal" in reply_lower or reply_lower == "personal_expense":
+        # Map to Owner's Draw — exclude from business P&L
+        await db.transactions.update_one(
+            {"id": tx_id, "user_id": user_id},
+            {"$set": {"category": "Owner's Draw", "is_business": False, "is_personal": True, "ai_categorized": True}}
+        )
+        # Create journal entry: Debit Owner's Draw, Credit Cash
+        await db.journal_entries.insert_one({
+            "id": str(uuid.uuid4()), "user_id": user_id,
+            "description": f"Personal expense: {description}",
+            "debit_account": "Owner's Draw", "credit_account": "Cash/Bank",
+            "amount": amount, "entry_type": "auto_comingle",
+            "source": "whatsapp", "created_at": datetime.now(timezone.utc).isoformat()
+        })
+        await send_whatsapp_message(phone, f"Got it! ₦{amount:,.0f} marked as Personal (Owner's Draw). It won't affect your business profit calculations.")
+    elif "business" in reply_lower or reply_lower == "business_expense":
+        # Ask for category
+        await set_user_state(user_id, STATE_AWAITING_CATEGORY, {"transaction_id": tx_id})
+        cats = "\n".join(f"{i+1}. {c}" for i, c in enumerate(VALID_CATEGORIES[:9]))
+        await send_whatsapp_message(phone, f"What category? Reply with the number:\n{cats}")
+        return
+    else:
+        await send_whatsapp_message(phone, "Please reply with \"Personal Expense\" or \"Business Expense\".")
+        return
 
-    # Check if it's a number reply (1-9)
-    if text_lower.isdigit():
-        idx = int(text_lower) - 1
-        if 0 <= idx < len(VALID_CATEGORIES[:9]):
-            category = VALID_CATEGORIES[idx]
-
-    # Check if it matches a category name
-    if not category:
-        for cat in VALID_CATEGORIES:
-            if cat.lower() == text_lower or cat.lower().startswith(text_lower):
-                category = cat
-                break
-
-    if not category:
-        return None
-
-    # Update the transaction
-    tx_id = pending["transaction_id"]
-    is_deductible = category in DEDUCTIBLE_CATEGORIES
-
-    await db.transactions.update_one(
-        {"id": tx_id, "user_id": user_id},
-        {"$set": {"category": category, "is_business": is_deductible, "ai_categorized": True}}
-    )
-
-    # Save to memory if there's a receiver account
-    tx = await db.transactions.find_one({"id": tx_id}, {"_id": 0, "receiver_account": 1})
-    if tx and tx.get("receiver_account"):
-        await save_category_to_memory(user_id, tx["receiver_account"], category)
-
-    # Remove pending
-    await db.pending_categorizations.delete_one({"_id": pending["_id"]})
-
-    badge = " [Tax Deductible]" if is_deductible else ""
-    return {"category": category, "is_deductible": is_deductible, "badge": badge, "transaction_id": tx_id}
+    await clear_user_state(user_id)
 
 
 # ========================
-# SUBSCRIPTION GATE
+# 2. AUTO-ROUTING OWNER CONTRIBUTIONS
 # ========================
 
-def is_pro_user(user: dict) -> bool:
-    """Check if user has Pro plan (N4k/month). Accepts 'pro', 'growth', or 'business' as valid."""
-    plan = user.get("subscription_plan", "starter")
-    return plan in ["pro", "growth", "business"]
+async def handle_owner_contribution(user_id: str, phone: str, amount: float, reply: str):
+    """Route owner contributions with correct double-entry bookkeeping."""
+    reply_lower = reply.lower().strip()
+
+    if "funded" in reply_lower or reply_lower == "i_funded_business":
+        # Owner injected capital: Credit Owner's Equity, Debit Cash
+        await db.journal_entries.insert_one({
+            "id": str(uuid.uuid4()), "user_id": user_id,
+            "description": f"Owner capital injection: ₦{amount:,.0f}",
+            "debit_account": "Cash/Bank", "credit_account": "Owner's Equity/Capital",
+            "amount": amount, "entry_type": "owner_contribution",
+            "source": "whatsapp", "created_at": datetime.now(timezone.utc).isoformat()
+        })
+        await db.transactions.insert_one({
+            "id": str(uuid.uuid4()), "user_id": user_id,
+            "amount": amount, "type": "income", "category": "Capital Injection",
+            "description": "Owner funded the business", "date": datetime.now(timezone.utc).isoformat(),
+            "is_business": True, "is_owner_equity": True, "ai_categorized": True,
+            "source": "whatsapp", "created_at": datetime.now(timezone.utc).isoformat()
+        })
+        await send_whatsapp_message(phone, f"Recorded! ₦{amount:,.0f} logged as Owner's Capital Injection. Your Cash account is debited, Owner's Equity credited.")
+
+    elif "paid" in reply_lower or "back" in reply_lower or reply_lower == "business_paid_me":
+        # Business repaying owner: Debit Owner's Draw/Loan Payable, Credit Cash
+        await db.journal_entries.insert_one({
+            "id": str(uuid.uuid4()), "user_id": user_id,
+            "description": f"Business repaid owner: ₦{amount:,.0f}",
+            "debit_account": "Owner's Draw/Loan Payable", "credit_account": "Cash/Bank",
+            "amount": amount, "entry_type": "owner_repayment",
+            "source": "whatsapp", "created_at": datetime.now(timezone.utc).isoformat()
+        })
+        await db.transactions.insert_one({
+            "id": str(uuid.uuid4()), "user_id": user_id,
+            "amount": amount, "type": "expense", "category": "Owner's Draw",
+            "description": "Business repaid owner loan", "date": datetime.now(timezone.utc).isoformat(),
+            "is_business": True, "is_owner_draw": True, "ai_categorized": True,
+            "source": "whatsapp", "created_at": datetime.now(timezone.utc).isoformat()
+        })
+        await send_whatsapp_message(phone, f"Recorded! ₦{amount:,.0f} logged as Owner Repayment. Loan Payable debited, Cash credited.")
+    else:
+        await send_whatsapp_message(phone, "Please reply:\n• \"I funded the business\"\n• \"Business paid me back\"")
+        return
+
+    await clear_user_state(user_id)
+
+
+# ========================
+# 3. SMART INVOICE RECONCILIATION
+# ========================
+
+async def attempt_invoice_reconciliation(user_id: str, phone: str, amount: float, tx_id: str):
+    """Try to match an incoming payment to unpaid invoices."""
+    # Find invoices within ±2% of the amount
+    lower = amount * 0.98
+    upper = amount * 1.02
+
+    matching_invoices = await db.invoices.find({
+        "user_id": user_id,
+        "status": "unpaid",
+        "total": {"$gte": lower, "$lte": upper}
+    }, {"_id": 0}).limit(5).to_list(5)
+
+    if len(matching_invoices) == 1:
+        # Single match — auto-reconcile
+        inv = matching_invoices[0]
+        await db.invoices.update_one(
+            {"id": inv["id"]},
+            {"$set": {"status": "paid", "matched_transaction_id": tx_id, "paid_at": datetime.now(timezone.utc).isoformat()}}
+        )
+        await send_whatsapp_message(
+            phone,
+            f"Invoice {inv['invoice_number']} for {inv.get('customer_name', 'customer')} has been automatically marked as PAID via your bank feed. ₦{amount:,.0f} matched successfully."
+        )
+        return True
+
+    elif len(matching_invoices) > 1:
+        # Multiple matches — ask user
+        options = "\n".join(
+            f"{i+1}. {inv['invoice_number']} — {inv.get('customer_name', 'N/A')} — ₦{inv['total']:,.0f}"
+            for i, inv in enumerate(matching_invoices)
+        )
+        await set_user_state(user_id, STATE_AWAITING_INVOICE_MATCH, {
+            "transaction_id": tx_id, "amount": amount,
+            "invoice_ids": [inv["id"] for inv in matching_invoices]
+        })
+        await send_whatsapp_message(
+            phone,
+            f"I found {len(matching_invoices)} invoices matching ₦{amount:,.0f}. Which one was paid?\n\n{options}\n\nReply with the number."
+        )
+        return True
+
+    return False
+
+
+async def process_invoice_match_reply(user_id: str, phone: str, reply: str, state_data: dict):
+    """Process user's invoice selection."""
+    invoice_ids = state_data.get("invoice_ids", [])
+    tx_id = state_data.get("transaction_id")
+    amount = state_data.get("amount", 0)
+
+    try:
+        idx = int(reply.strip()) - 1
+        if 0 <= idx < len(invoice_ids):
+            inv_id = invoice_ids[idx]
+            inv = await db.invoices.find_one({"id": inv_id}, {"_id": 0})
+            if inv:
+                await db.invoices.update_one(
+                    {"id": inv_id},
+                    {"$set": {"status": "paid", "matched_transaction_id": tx_id, "paid_at": datetime.now(timezone.utc).isoformat()}}
+                )
+                await send_whatsapp_message(phone, f"Invoice {inv['invoice_number']} marked as PAID. ₦{amount:,.0f} matched.")
+                await clear_user_state(user_id)
+                return
+    except (ValueError, IndexError):
+        pass
+
+    await send_whatsapp_message(phone, "Please reply with the invoice number (1, 2, 3, etc.)")
+
+
+# ========================
+# 4. VAT & TAX MICRO-DASHBOARD
+# ========================
+
+async def send_tax_summary(user_id: str, phone: str):
+    """Send real-time VAT & tax summary via WhatsApp."""
+    income_txs = await db.transactions.find(
+        {"user_id": user_id, "type": "income", "is_personal": {"$ne": True}},
+        {"_id": 0, "amount": 1}
+    ).limit(1000).to_list(1000)
+
+    expense_txs = await db.transactions.find(
+        {"user_id": user_id, "type": "expense", "is_personal": {"$ne": True}},
+        {"_id": 0, "amount": 1, "category": 1}
+    ).limit(1000).to_list(1000)
+
+    total_revenue = sum(tx["amount"] for tx in income_txs)
+    total_expenses = sum(tx["amount"] for tx in expense_txs)
+    vat_collected = round(total_revenue * 0.075, 2)
+
+    deductible_cats = {"Rent", "Utilities", "Professional Fees", "Marketing", "Equipment", "Subscriptions", "Transport", "Telecommunications"}
+    deductible = sum(tx["amount"] for tx in expense_txs if tx.get("category") in deductible_cats)
+    taxable = max(0, total_revenue - deductible)
+    estimated_tax = calculate_pita(taxable)
+
+    reserve = await db.tax_reserves.find_one({"user_id": user_id}, {"_id": 0})
+    tax_reserve = reserve.get("amount", 0) if reserve else 0
+
+    msg = (
+        f"*ClearFile Tax Summary*\n\n"
+        f"Total Revenue: ₦{total_revenue:,.0f}\n"
+        f"Total Expenses: ₦{total_expenses:,.0f}\n"
+        f"Net Profit: ₦{total_revenue - total_expenses:,.0f}\n\n"
+        f"Estimated VAT Collected: ₦{vat_collected:,.0f}\n"
+        f"Estimated Tax Obligation: ₦{estimated_tax:,.0f}\n"
+        f"Tax Reserve Set Aside: ₦{tax_reserve:,.0f}\n\n"
+        f"*Recommendation:* Keep ₦{vat_collected:,.0f} aside in a separate tax wallet/account for your next filing."
+    )
+
+    await send_whatsapp_message(phone, msg)
 
 
 # ========================
@@ -253,344 +429,360 @@ def is_pro_user(user: dict) -> bool:
 
 @router.get("/whatsapp/webhook")
 async def verify_webhook(request: Request):
-    """Meta webhook verification (GET request)."""
     mode = request.query_params.get("hub.mode")
     token = request.query_params.get("hub.verify_token")
     challenge = request.query_params.get("hub.challenge")
-
     if mode == "subscribe" and token == WHATSAPP_VERIFY_TOKEN:
-        logger.info("WhatsApp webhook verified successfully")
         return PlainTextResponse(content=challenge, status_code=200)
-
     raise HTTPException(status_code=403, detail="Verification failed")
 
 
 @router.post("/whatsapp/webhook")
 async def whatsapp_webhook(request: Request):
-    """
-    Receive incoming WhatsApp messages via Meta webhook.
-    Features: Subscription gate, transaction memory, proactive tagging.
-    """
+    """Main WhatsApp webhook — handles all conversation flows."""
     try:
         payload = await request.json()
-
-        # Extract message from Meta webhook format
         message_body = ""
         sender = ""
+        button_id = None
 
         if "entry" in payload:
             for entry in payload.get("entry", []):
                 for change in entry.get("changes", []):
                     value = change.get("value", {})
-                    messages = value.get("messages", [])
-                    for msg in messages:
+                    for msg in value.get("messages", []):
+                        sender = msg.get("from", "")
                         if msg.get("type") == "text":
                             message_body = msg["text"]["body"]
-                            sender = msg["from"]
-                            break
-                    if message_body:
+                        elif msg.get("type") == "interactive":
+                            button_id = msg.get("interactive", {}).get("button_reply", {}).get("id", "")
+                            message_body = button_id
                         break
-                if message_body:
-                    break
 
-        if not message_body:
-            return {"status": "ok", "message": "No text message"}
+        if not message_body and not button_id:
+            return {"status": "ok"}
 
         phone = re.sub(r'[^\d]', '', sender)
-
-        # Find user by linked phone
         user = await db.users.find_one({"whatsapp_phone": {"$regex": phone[-10:]}})
 
         if not user:
-            await send_whatsapp_message(
-                sender,
-                f"Welcome to ClearFile NG! Please link your WhatsApp number in the app first.\n\nVisit: {FRONTEND_URL}/settings"
-            )
+            await send_whatsapp_message(sender, f"Welcome to ClearFile NG! Link your WhatsApp in the app first.\n{FRONTEND_URL}/settings")
             return {"status": "ok", "message": "User not found"}
 
         user_id = str(user["_id"])
 
         # ========== SUBSCRIPTION GATE ==========
         if not is_pro_user(user):
-            await send_whatsapp_message(
-                sender,
-                f"This feature is available on the Pro plan (N4,000/month).\n\n"
-                f"Upgrade now to unlock:\n"
-                f"• WhatsApp expense logging\n"
-                f"• AI auto-categorization\n"
-                f"• Unlimited transactions\n\n"
-                f"Upgrade here: {FRONTEND_URL}/settings"
-            )
-            return {"status": "ok", "message": "Free user redirected to upgrade"}
+            await send_whatsapp_message(sender, f"This feature requires the Pro plan (₦4,000/month).\n\nUpgrade: {FRONTEND_URL}/settings")
+            return {"status": "ok", "message": "Free user"}
 
-        # ========== HANDLE COMMANDS ==========
+        # ========== CHECK CONVERSATION STATE ==========
+        conv_state = await get_user_state(user_id)
+
+        if conv_state["state"] == STATE_AWAITING_COMINGLE_REPLY:
+            await process_comingle_reply(user_id, sender, message_body, conv_state["data"])
+            return {"status": "ok", "flow": "comingle"}
+
+        if conv_state["state"] == STATE_AWAITING_OWNER_CONTRIB:
+            await handle_owner_contribution(user_id, sender, conv_state["data"].get("amount", 0), message_body)
+            return {"status": "ok", "flow": "owner_contrib"}
+
+        if conv_state["state"] == STATE_AWAITING_INVOICE_MATCH:
+            await process_invoice_match_reply(user_id, sender, message_body, conv_state["data"])
+            return {"status": "ok", "flow": "invoice_match"}
+
+        if conv_state["state"] == STATE_AWAITING_CATEGORY:
+            # Category reply for proactive tagging
+            tx_id = conv_state["data"].get("transaction_id")
+            category = None
+            text_lower = message_body.lower().strip()
+            if text_lower.isdigit():
+                idx = int(text_lower) - 1
+                if 0 <= idx < len(VALID_CATEGORIES[:9]):
+                    category = VALID_CATEGORIES[idx]
+            if not category:
+                for cat in VALID_CATEGORIES:
+                    if cat.lower().startswith(text_lower):
+                        category = cat
+                        break
+            if category:
+                is_ded = category in DEDUCTIBLE_CATEGORIES
+                await db.transactions.update_one(
+                    {"id": tx_id, "user_id": user_id},
+                    {"$set": {"category": category, "is_business": is_ded, "ai_categorized": True}}
+                )
+                badge = " [Tax Deductible]" if is_ded else ""
+                await send_whatsapp_message(sender, f"Categorized as {category}.{badge}")
+                await clear_user_state(user_id)
+            else:
+                await send_whatsapp_message(sender, "Reply with a number (1-9) or category name.")
+            return {"status": "ok", "flow": "category"}
+
+        # ========== COMMANDS ==========
         text_lower = message_body.lower().strip()
 
-        if text_lower in ["hi", "hello", "hey", "help"]:
-            await send_whatsapp_message(
-                sender,
-                "Hey! I'm your ClearFile NG expense bot.\n\n"
-                "Just text your expenses like:\n"
-                "• \"Paid 5k for MTN data\"\n"
-                "• \"Spent N15,000 on fuel\"\n"
-                "• \"Office rent 200k\"\n\n"
+        if text_lower in ["hi", "hello", "hey", "help", "menu"]:
+            await send_whatsapp_message(sender,
+                "*ClearFile NG Bot*\n\n"
+                "Log expenses:\n• \"Paid 5k for MTN data\"\n• \"Sent 50k to 0123456789 for rent\"\n\n"
                 "Commands:\n"
-                "• \"balance\" - Your expense summary\n"
-                "• \"memory\" - View saved categories\n\n"
-                "I'll auto-flag tax-deductible expenses!"
+                "• *summary* — Tax & VAT dashboard\n"
+                "• *inject* — Log owner funds\n"
+                "• *invoice* — Create invoice\n"
+                "• *memory* — View saved categories\n"
+                "• *balance* — Quick totals"
             )
-            return {"status": "ok", "message": "Sent help"}
+            return {"status": "ok"}
 
-        if text_lower in ["balance", "summary", "total"]:
-            expenses = await db.transactions.find(
-                {"user_id": user_id, "type": "expense"},
-                {"_id": 0, "amount": 1, "category": 1}
-            ).limit(1000).to_list(1000)
+        if text_lower in ["summary", "tax", "vat", "dashboard"]:
+            await send_tax_summary(user_id, sender)
+            return {"status": "ok", "flow": "tax_summary"}
 
+        if text_lower in ["balance", "total"]:
+            expenses = await db.transactions.find({"user_id": user_id, "type": "expense", "is_personal": {"$ne": True}}, {"_id": 0, "amount": 1, "category": 1}).limit(1000).to_list(1000)
             total = sum(tx["amount"] for tx in expenses)
             deductible = sum(tx["amount"] for tx in expenses if tx.get("category") in DEDUCTIBLE_CATEGORIES)
+            await send_whatsapp_message(sender, f"*Quick Balance*\nBusiness Expenses: ₦{total:,.0f}\nTax Deductible: ₦{deductible:,.0f}\nSavings: ~₦{deductible * 0.2:,.0f}")
+            return {"status": "ok"}
 
-            await send_whatsapp_message(
-                sender,
-                f"Your ClearFile NG Summary:\n\n"
-                f"Total Expenses: N{total:,.0f}\n"
-                f"Tax Deductible: N{deductible:,.0f}\n"
-                f"Tax Savings: ~N{deductible * 0.2:,.0f}\n\n"
-                f"Keep logging to reduce your tax bill!"
-            )
-            return {"status": "ok", "message": "Sent summary"}
-
-        if text_lower == "memory":
-            memories = await db.transaction_memory.find(
-                {"user_id": user_id}, {"_id": 0}
-            ).sort("updated_at", -1).limit(10).to_list(10)
-
+        if text_lower in ["memory", "saved"]:
+            memories = await db.transaction_memory.find({"user_id": user_id}, {"_id": 0}).sort("updated_at", -1).limit(10).to_list(10)
             if not memories:
-                await send_whatsapp_message(sender, "No saved categories yet. As you categorize transactions, I'll remember them for next time!")
+                await send_whatsapp_message(sender, "No saved categories yet.")
             else:
-                lines = [f"• {m['receiver_account'][-4:]}** → {m['category']}" for m in memories]
-                await send_whatsapp_message(sender, f"Your saved categories:\n\n" + "\n".join(lines))
-            return {"status": "ok", "message": "Sent memory list"}
+                lines = "\n".join(f"• ***{m['receiver_account'][-4:]} → {m['category']}" for m in memories)
+                await send_whatsapp_message(sender, f"*Saved Categories:*\n{lines}")
+            return {"status": "ok"}
 
-        # ========== CHECK IF REPLYING TO CATEGORY PROMPT ==========
-        category_result = await handle_category_reply(user_id, phone, message_body)
-        if category_result:
-            reply = f"Got it! Categorized as {category_result['category']}.{category_result['badge']}"
-            if category_result["is_deductible"]:
-                reply += " Your estimated tax has been reduced."
-            await send_whatsapp_message(sender, reply)
-            return {"status": "ok", "reply": reply, "categorized": True}
+        # ========== OWNER CONTRIBUTION FLOW ==========
+        if text_lower.startswith("inject") or "owner money" in text_lower or "fund business" in text_lower:
+            amount = parse_amount(message_body)
+            if amount and amount > 0:
+                await set_user_state(user_id, STATE_AWAITING_OWNER_CONTRIB, {"amount": amount})
+                await send_whatsapp_buttons(sender,
+                    f"₦{amount:,.0f} — Did you put personal money into the business, or did the business pay you back?",
+                    [{"id": "i_funded_business", "title": "I funded business"},
+                     {"id": "business_paid_me", "title": "Business paid me"}]
+                )
+            else:
+                await send_whatsapp_message(sender, "How much? Reply: \"inject 200k\" or \"inject N500,000\"")
+            return {"status": "ok", "flow": "owner_contrib_start"}
 
-        # ========== PARSE EXPENSE ==========
-        parsed = parse_expense_message(message_body)
+        # ========== INVOICE CREATION ==========
+        if text_lower.startswith("invoice"):
+            amount = parse_amount(message_body)
+            if amount and amount > 0:
+                # Extract customer name if present
+                parts = message_body.split(" for ")
+                customer = parts[1].strip() if len(parts) > 1 else "Customer"
+                vat = round(amount * 0.075, 2)
+                inv = {
+                    "id": str(uuid.uuid4()),
+                    "invoice_number": f"INV-{datetime.now().strftime('%Y%m')}-{uuid.uuid4().hex[:6].upper()}",
+                    "user_id": user_id,
+                    "customer_name": customer,
+                    "amount": amount, "vat_amount": vat, "total": round(amount + vat, 2),
+                    "status": "unpaid", "created_at": datetime.now(timezone.utc).isoformat()
+                }
+                await db.invoices.insert_one(inv)
+                await db.vat_liability.update_one(
+                    {"user_id": user_id},
+                    {"$inc": {"accrued_vat": vat}, "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}},
+                    upsert=True
+                )
+                await send_whatsapp_message(sender,
+                    f"*Invoice Created*\n{inv['invoice_number']}\nCustomer: {customer}\nAmount: ₦{amount:,.0f}\nVAT (7.5%): ₦{vat:,.0f}\nTotal: ₦{inv['total']:,.0f}\nStatus: Unpaid"
+                )
+            else:
+                await send_whatsapp_message(sender, "Create invoice: \"invoice 500k for Client Name\"")
+            return {"status": "ok", "flow": "invoice_create"}
 
-        if not parsed["amount"] or parsed["amount"] <= 0:
-            await send_whatsapp_message(
-                sender,
-                "I couldn't understand the amount. Try:\n"
-                "• \"Paid 5k for MTN data\"\n"
-                "• \"Spent N15,000 on fuel\"\n"
-                "• \"Office rent 200k\""
-            )
-            return {"status": "ok", "reply": "Could not parse amount"}
+        # ========== STANDARD EXPENSE LOGGING ==========
+        parsed_amount = parse_amount(message_body)
+        if not parsed_amount or parsed_amount <= 0:
+            await send_whatsapp_message(sender, "I couldn't parse that. Try:\n• \"Paid 5k for MTN data\"\n• \"Spent N15,000 on fuel\"\n• \"inject 200k\"")
+            return {"status": "ok"}
 
-        # ========== TRANSACTION MEMORY: Check for known receiver ==========
-        # Extract receiver account if mentioned (e.g. "Sent 50k to 0123456789")
+        category = categorize_text(message_body)
+        is_deductible = category in DEDUCTIBLE_CATEGORIES
+
+        # Check receiver account for memory
         account_match = re.search(r'(?:to|account|acct)\s*[:#]?\s*(\d{10})', message_body.lower())
         receiver_account = account_match.group(1) if account_match else None
 
         if receiver_account:
-            remembered_category = await get_category_from_memory(user_id, receiver_account)
-            if remembered_category:
-                parsed["category"] = remembered_category
-                parsed["is_deductible"] = remembered_category in DEDUCTIBLE_CATEGORIES
+            remembered = await get_category_from_memory(user_id, receiver_account)
+            if remembered:
+                category = remembered
+                is_deductible = category in DEDUCTIBLE_CATEGORIES
 
-        # Create transaction
         tx_doc = {
-            "id": str(uuid.uuid4()),
-            "user_id": user_id,
-            "amount": parsed["amount"],
-            "type": "expense",
-            "category": parsed["category"],
-            "description": parsed["description"],
+            "id": str(uuid.uuid4()), "user_id": user_id,
+            "amount": parsed_amount, "type": "expense", "category": category,
+            "description": message_body.strip()[:200],
             "date": datetime.now(timezone.utc).isoformat(),
-            "bank_account_id": None,
             "receiver_account": receiver_account,
-            "is_recurring": False,
-            "ai_categorized": True,
-            "is_business": parsed["is_deductible"],
-            "flagged": False,
-            "source": "whatsapp",
+            "is_recurring": False, "ai_categorized": True, "is_business": is_deductible,
+            "flagged": False, "source": "whatsapp",
             "created_at": datetime.now(timezone.utc).isoformat()
         }
-
         await db.transactions.insert_one(tx_doc)
         tx_doc.pop("_id", None)
 
-        # Save to memory if receiver account was provided
-        if receiver_account and parsed["category"] != "Miscellaneous":
-            await save_category_to_memory(user_id, receiver_account, parsed["category"])
+        if receiver_account and category != "Miscellaneous":
+            await save_category_to_memory(user_id, receiver_account, category)
 
-        # Build confirmation
-        deductible_msg = " Your estimated tax has been reduced." if parsed["is_deductible"] else ""
-        badge = " [Tax Deductible]" if parsed["is_deductible"] else ""
-        memory_msg = f" (Remembered for acct ***{receiver_account[-4:]})" if receiver_account else ""
-        reply = f"Done! N{parsed['amount']:,.0f} logged under {parsed['category']}.{badge}{memory_msg}{deductible_msg}"
+        badge = " [Tax Deductible]" if is_deductible else ""
+        memory_msg = f" (Saved for ***{receiver_account[-4:]})" if receiver_account else ""
+        ded_msg = " Your estimated tax has been reduced." if is_deductible else ""
+        reply = f"Done! ₦{parsed_amount:,.0f} logged under {category}.{badge}{memory_msg}{ded_msg}"
 
         await send_whatsapp_message(sender, reply)
-        logger.info(f"WhatsApp expense: N{parsed['amount']:,.0f} - {parsed['category']} for {user_id}")
-
         return {"status": "ok", "reply": reply, "transaction_id": tx_doc["id"]}
 
     except Exception as e:
-        logger.error(f"WhatsApp webhook error: {e}")
+        logger.error(f"WA webhook error: {e}")
         return {"status": "error", "message": str(e)}
 
 
 # ========================
-# PROACTIVE TAGGING TRIGGER (called by banking sync)
+# MONO WEBHOOK — Co-mingling + Reconciliation
+# ========================
+
+@router.post("/whatsapp/mono-sync")
+async def process_mono_transaction(request: Request):
+    """Called when Mono syncs a new bank transaction. Runs guardrails."""
+    data = await request.json()
+    user_id = data.get("user_id")
+    tx_id = data.get("transaction_id", str(uuid.uuid4()))
+    amount = float(data.get("amount", 0))
+    description = data.get("description", "")
+    tx_type = data.get("type", "debit")
+    receiver_account = data.get("receiver_account")
+
+    user = await db.users.find_one({"_id": __import__('bson').ObjectId(user_id)})
+    if not user or not is_pro_user(user):
+        return {"status": "skipped", "reason": "No user or not pro"}
+
+    phone = user.get("whatsapp_phone", "").replace("+", "")
+    if not phone:
+        return {"status": "skipped", "reason": "No WhatsApp linked"}
+
+    # === For incoming payments (credits), try invoice reconciliation ===
+    if tx_type == "credit" and amount > 0:
+        reconciled = await attempt_invoice_reconciliation(user_id, phone, amount, tx_id)
+        if reconciled:
+            return {"status": "ok", "action": "invoice_reconciled"}
+
+    # === For debits, check co-mingling ===
+    if tx_type == "debit":
+        # Check memory first
+        if receiver_account:
+            remembered = await get_category_from_memory(user_id, receiver_account)
+            if remembered:
+                is_ded = remembered in DEDUCTIBLE_CATEGORIES
+                await db.transactions.update_one(
+                    {"id": tx_id}, {"$set": {"category": remembered, "is_business": is_ded, "ai_categorized": True}}
+                )
+                await send_whatsapp_message(phone, f"Auto-labeled: ₦{amount:,.0f} → {remembered}{' [Tax Deductible]' if is_ded else ''}")
+                return {"status": "ok", "action": "auto_labeled"}
+
+        # Check for personal spending
+        asked = await handle_comingle_check(user_id, phone, {
+            "id": tx_id, "amount": amount, "description": description, "merchant": description
+        })
+        if asked:
+            return {"status": "ok", "action": "asked_comingle"}
+
+    return {"status": "ok", "action": "none"}
+
+
+# ========================
+# PROACTIVE TAGGING TRIGGER
 # ========================
 
 @router.post("/whatsapp/proactive-tag")
 async def trigger_proactive_tag(request: Request):
-    """
-    Called internally when a bank transaction syncs without a clear label.
-    Sends WhatsApp message asking user to categorize it.
-    """
+    """Ask user to categorize an unlabeled transaction."""
     data = await request.json()
     user_id = data.get("user_id")
-    transaction_id = data.get("transaction_id")
-    description = data.get("description", "Unknown transaction")
+    tx_id = data.get("transaction_id")
+    description = data.get("description", "")
     amount = data.get("amount", 0)
     receiver_account = data.get("receiver_account")
 
-    if not user_id or not transaction_id:
-        raise HTTPException(status_code=400, detail="user_id and transaction_id required")
-
     user = await db.users.find_one({"_id": __import__('bson').ObjectId(user_id)})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    if not user or not is_pro_user(user):
+        return {"status": "skipped"}
 
-    # Only for Pro users
-    if not is_pro_user(user):
-        return {"status": "skipped", "reason": "User not on Pro plan"}
-
-    phone = user.get("whatsapp_phone", "")
+    phone = user.get("whatsapp_phone", "").replace("+", "")
     if not phone:
-        return {"status": "skipped", "reason": "No WhatsApp linked"}
+        return {"status": "skipped"}
 
-    # Check transaction memory first
     if receiver_account:
         remembered = await get_category_from_memory(user_id, receiver_account)
         if remembered:
-            # Auto-label based on memory
-            is_deductible = remembered in DEDUCTIBLE_CATEGORIES
+            is_ded = remembered in DEDUCTIBLE_CATEGORIES
             await db.transactions.update_one(
-                {"id": transaction_id, "user_id": user_id},
-                {"$set": {"category": remembered, "is_business": is_deductible, "ai_categorized": True}}
-            )
-            await send_whatsapp_message(
-                phone.replace("+", ""),
-                f"Auto-labeled: N{amount:,.0f} to ***{receiver_account[-4:]} → {remembered}{' [Tax Deductible]' if is_deductible else ''}"
+                {"id": tx_id, "user_id": user_id},
+                {"$set": {"category": remembered, "is_business": is_ded, "ai_categorized": True}}
             )
             return {"status": "ok", "auto_labeled": True, "category": remembered}
 
-    # No memory match — ask user
-    await ask_for_category(user_id, phone.replace("+", ""), transaction_id, description, amount)
+    await set_user_state(user_id, STATE_AWAITING_CATEGORY, {"transaction_id": tx_id})
+    cats = "\n".join(f"{i+1}. {c}" for i, c in enumerate(VALID_CATEGORIES[:9]))
+    await send_whatsapp_message(phone, f"New transaction: ₦{amount:,.0f} — {description}\n\nWhat category?\n{cats}")
     return {"status": "ok", "asked_user": True}
 
 
 # ========================
-# USER-FACING ENDPOINTS
+# USER-FACING API ENDPOINTS
 # ========================
 
 @router.post("/whatsapp/link")
 async def link_whatsapp(request: Request, user: dict = Depends(get_current_user)):
-    """Link user's WhatsApp number to their account."""
     data = await request.json()
     phone = data.get("phone", "").strip()
-
     if not phone:
         raise HTTPException(status_code=400, detail="Phone number required")
-
-    # Subscription gate check
     if not is_pro_user(user):
-        raise HTTPException(status_code=403, detail="WhatsApp bot requires Pro plan (N4,000/month). Upgrade in Settings.")
+        raise HTTPException(status_code=403, detail="WhatsApp bot requires Pro plan")
 
     phone = re.sub(r'[^\d+]', '', phone)
     if not phone.startswith("+"):
-        if phone.startswith("0"):
-            phone = "+234" + phone[1:]
-        elif not phone.startswith("234"):
-            phone = "+234" + phone
+        phone = "+234" + (phone[1:] if phone.startswith("0") else phone)
 
-    from bson import ObjectId
-    await db.users.update_one(
-        {"_id": ObjectId(user["id"])},
-        {"$set": {"whatsapp_phone": phone, "whatsapp_linked": True}}
-    )
-
-    await send_whatsapp_message(
-        phone.replace("+", ""),
-        "Your ClearFile NG account is linked!\n\n"
-        "Log expenses by texting:\n"
-        "• \"Paid 5k for MTN data\"\n"
-        "• \"Sent 50k to 0123456789 for rent\"\n\n"
-        "I'll remember who you pay and auto-label next time!\n\n"
-        "Type \"help\" for all commands."
-    )
-
-    return {
-        "message": "WhatsApp linked successfully",
-        "phone": phone,
-        "bot_number": WHATSAPP_PHONE_NUMBER_ID,
-        "wa_link": f"https://wa.me/{WHATSAPP_PHONE_NUMBER_ID}?text=Hi%20ClearFile%20NG!%20Link%20my%20account"
-    }
+    await db.users.update_one({"_id": __import__('bson').ObjectId(user["id"])}, {"$set": {"whatsapp_phone": phone, "whatsapp_linked": True}})
+    await send_whatsapp_message(phone.replace("+", ""),
+        "*ClearFile NG Connected!*\n\nLog expenses: \"Paid 5k for data\"\nCreate invoices: \"invoice 500k for Client\"\nOwner funds: \"inject 200k\"\nTax summary: \"summary\"\n\nType *help* for all commands.")
+    return {"message": "WhatsApp linked", "phone": phone, "bot_number": WHATSAPP_PHONE_NUMBER_ID, "wa_link": f"https://wa.me/{WHATSAPP_PHONE_NUMBER_ID}?text=Hi%20ClearFile%20NG"}
 
 
 @router.get("/whatsapp/status")
 async def get_whatsapp_status(user: dict = Depends(get_current_user)):
-    """Check WhatsApp link status."""
-    return {
-        "linked": user.get("whatsapp_linked", False),
-        "phone": user.get("whatsapp_phone", ""),
-        "bot_number": WHATSAPP_PHONE_NUMBER_ID,
-        "wa_link": f"https://wa.me/{WHATSAPP_PHONE_NUMBER_ID}?text=Hi%20ClearFile%20NG!%20Link%20my%20account",
-        "is_pro": is_pro_user(user)
-    }
+    return {"linked": user.get("whatsapp_linked", False), "phone": user.get("whatsapp_phone", ""), "is_pro": is_pro_user(user), "bot_number": WHATSAPP_PHONE_NUMBER_ID}
 
 
 @router.get("/whatsapp/memory")
 async def get_transaction_memory(user: dict = Depends(get_current_user)):
-    """Get user's saved category memory mappings."""
-    memories = await db.transaction_memory.find(
-        {"user_id": user["id"]}, {"_id": 0}
-    ).sort("updated_at", -1).limit(50).to_list(50)
+    memories = await db.transaction_memory.find({"user_id": user["id"]}, {"_id": 0}).sort("updated_at", -1).limit(50).to_list(50)
     return {"memories": memories, "count": len(memories)}
 
 
 @router.delete("/whatsapp/memory/{receiver_account}")
 async def delete_memory(receiver_account: str, user: dict = Depends(get_current_user)):
-    """Delete a category memory mapping."""
-    result = await db.transaction_memory.delete_one({
-        "user_id": user["id"],
-        "receiver_account": receiver_account
-    })
+    result = await db.transaction_memory.delete_one({"user_id": user["id"], "receiver_account": receiver_account})
     if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Memory not found")
-    return {"message": "Memory deleted"}
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"message": "Deleted"}
 
 
 @router.post("/whatsapp/test-parse")
 async def test_parse_message(request: Request, user: dict = Depends(get_current_user)):
-    """Test the NLP parsing without creating a transaction."""
     data = await request.json()
     text = data.get("text", "")
     if not text:
         raise HTTPException(status_code=400, detail="Text required")
-    parsed = parse_expense_message(text)
-    return {
-        "input": text,
-        "parsed": parsed,
-        "would_create": parsed["amount"] is not None and parsed["amount"] > 0
-    }
+    amount = parse_amount(text)
+    category = categorize_text(text)
+    return {"input": text, "parsed": {"amount": amount, "category": category, "is_deductible": category in DEDUCTIBLE_CATEGORIES, "is_likely_personal": is_likely_personal(text)}, "would_create": amount is not None and amount > 0}

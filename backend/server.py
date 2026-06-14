@@ -28,6 +28,7 @@ from routes.tax_engine import router as tax_engine_router
 from routes.whatsapp import router as whatsapp_router
 from routes.filing import router as filing_router
 from routes.admin import router as admin_router
+from routes.ledger import router as ledger_router
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -56,6 +57,7 @@ api_router.include_router(tax_engine_router)
 api_router.include_router(whatsapp_router)
 api_router.include_router(filing_router)
 api_router.include_router(admin_router)
+api_router.include_router(ledger_router)
 
 
 # Health check endpoints
@@ -95,6 +97,12 @@ async def startup():
     await db.notifications.create_index([("user_id", 1), ("created_at", -1)])
     await db.transaction_memory.create_index([("user_id", 1), ("receiver_account", 1)], unique=True)
     await db.pending_categorizations.create_index([("user_id", 1), ("created_at", -1)])
+    await db.invoices.create_index([("user_id", 1), ("status", 1)])
+    await db.invoices.create_index([("user_id", 1), ("total", 1)])
+    await db.journal_entries.create_index([("user_id", 1), ("date", -1)])
+    await db.vat_liability.create_index("user_id", unique=True)
+    await db.wa_conversation_state.create_index("user_id", unique=True)
+    await db.ai_guide_unlocks.create_index([("user_id", 1), ("status", 1)])
 
     # Initialize storage
     try:
