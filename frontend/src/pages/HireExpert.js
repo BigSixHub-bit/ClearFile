@@ -52,27 +52,27 @@ export default function HireExpert() {
     return (
       <Layout>
         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
-          <div className="w-20 h-20 bg-[#E8F5E9] rounded-full flex items-center justify-center mb-6">
-            <CheckCircle className="w-12 h-12 text-[#006400]" />
+          <div className="w-20 h-20 bg-[#00C896]/10 rounded-full flex items-center justify-center mb-6">
+            <CheckCircle className="w-12 h-12 text-[#00C896]" />
           </div>
-          <h2 className="text-2xl font-bold text-[#022c22] mb-2" style={{ fontFamily: 'Outfit' }}>
+          <h2 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: 'Clash Display, Satoshi, sans-serif' }}>
             Request Submitted!
           </h2>
-          <p className="text-slate-500 max-w-sm mb-2">
+          <p className="text-[#A1A1AA] max-w-sm mb-2">
             We're matching you with a verified Pan-African tax professional.
           </p>
-          <div className="flex items-center gap-2 text-sm text-[#006400] font-medium mb-6">
+          <div className="flex items-center gap-2 text-sm text-[#00C896] font-medium mb-6">
             <Clock className="w-4 h-4" />
             <span>Estimated match time: 24-48 hours</span>
           </div>
-          <p className="text-sm text-slate-400 mb-6">
+          <p className="text-sm text-[#555] mb-6">
             You'll receive a notification and email when your expert is ready.
           </p>
           <div className="flex gap-3">
             <Button variant="outline" onClick={() => navigate('/dashboard')} className="rounded-xl" data-testid="back-to-dashboard">
               Back to Dashboard
             </Button>
-            <Button onClick={() => navigate('/tax-calculator')} className="rounded-xl bg-[#006400] hover:bg-[#004d00] text-white" data-testid="back-to-tax">
+            <Button onClick={() => navigate('/tax-calculator')} className="rounded-xl bg-[#00C896] hover:bg-[#00dba6] text-white" data-testid="back-to-tax">
               Back to Tax Calculator
             </Button>
           </div>
@@ -90,19 +90,19 @@ export default function HireExpert() {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-[#022c22]" style={{ fontFamily: 'Outfit' }}>
+            <h1 className="text-2xl font-bold text-white" style={{ fontFamily: 'Clash Display, Satoshi, sans-serif' }}>
               Hire a Verified Expert
             </h1>
-            <p className="text-slate-500 text-sm">Connect with a vetted Pan-African tax professional</p>
+            <p className="text-[#A1A1AA] text-sm">Connect with a vetted Pan-African tax professional</p>
           </div>
         </div>
 
         {/* Trust Signals */}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { icon: Shield, text: 'Vetted & Verified', color: 'text-[#006400]', bg: 'bg-[#E8F5E9]' },
-            { icon: Star, text: 'Top-Rated Pros', color: 'text-[#D4A017]', bg: 'bg-[#FFF8E1]' },
-            { icon: CheckCircle, text: 'Secure Data', color: 'text-blue-600', bg: 'bg-blue-50' },
+            { icon: Shield, text: 'Vetted & Verified', color: 'text-[#00C896]', bg: 'bg-[#00C896]/10' },
+            { icon: Star, text: 'Top-Rated Pros', color: 'text-[#D4A017]', bg: 'bg-[#F59E0B]/10' },
+            { icon: CheckCircle, text: 'Secure Data', color: 'text-[#3B82F6]', bg: 'bg-[#3B82F6]/10' },
           ].map((item, i) => (
             <div key={i} className={`${item.bg} rounded-xl p-3 flex flex-col items-center gap-1.5 text-center`}>
               <item.icon className={`w-5 h-5 ${item.color}`} />
@@ -112,7 +112,7 @@ export default function HireExpert() {
         </div>
 
         {/* Form */}
-        <Card className="rounded-2xl border-slate-200" data-testid="expert-form">
+        <Card className="card-dark" data-testid="expert-form">
           <CardContent className="p-6 space-y-5">
             <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-[#006400] to-[#228B22] rounded-xl text-white">
               <Handshake className="w-8 h-8" />
@@ -223,7 +223,7 @@ export default function HireExpert() {
             <Button
               onClick={handleSubmit}
               disabled={submitting}
-              className="w-full bg-[#006400] hover:bg-[#004d00] text-white rounded-xl py-6 text-base font-bold"
+              className="w-full bg-[#00C896] hover:bg-[#00dba6] text-white rounded-xl py-6 text-base font-bold"
               data-testid="submit-expert-request"
             >
               {submitting ? (
@@ -233,7 +233,7 @@ export default function HireExpert() {
               )}
             </Button>
 
-            <p className="text-center text-xs text-slate-400">
+            <p className="text-center text-xs text-[#555]">
               Your tax data will be securely shared with the matched expert. You can revoke access at any time.
             </p>
           </CardContent>

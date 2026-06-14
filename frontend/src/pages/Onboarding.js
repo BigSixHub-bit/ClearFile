@@ -1,13 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Button } from '../components/ui/button';
-import { Card, CardContent } from '../components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Label } from '../components/ui/label';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
-import { Check, Shield, Wallet, ArrowRight, MapPin, Users, Lock } from 'lucide-react';
+import { Check, Shield, Wallet, ArrowRight, MapPin, Lock, ArrowLeft } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -18,222 +14,122 @@ export default function Onboarding() {
   const { user, updateSettings } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchStates();
-  }, []);
-
-  const fetchStates = async () => {
-    try {
-      const { data } = await axios.get(`${API}/api/states`, { withCredentials: true });
-      setStates(data.states || []);
-    } catch (e) { /* ignore */ }
-  };
+  useEffect(() => { fetchStates(); }, []);
+  const fetchStates = async () => { try { const { data } = await axios.get(`${API}/api/states`, { withCredentials: true }); setStates(data.states || []); } catch (e) {} };
 
   const completeOnboarding = async () => {
     try {
-      // Save state selection
       await axios.put(`${API}/api/user/state`, { state_of_residence: selectedState }, { withCredentials: true });
       await updateSettings({ onboarding_completed: true });
       toast.success('Welcome to ClearFile NG!');
       navigate('/dashboard');
-    } catch (error) {
-      toast.error('Something went wrong');
-    }
+    } catch (error) { toast.error('Something went wrong'); }
   };
 
   const steps = [
     {
-      title: 'Welcome to ClearFile NG!',
-      subtitle: `Hi ${user?.name || 'there'}! Let's set up your tax management.`,
+      title: 'Welcome to ClearFile NG',
+      subtitle: `Let's set up your financial command center, ${user?.name?.split(' ')[0] || 'there'}.`,
       content: (
-        <div className="space-y-4">
-          <div className="bg-[#E8F5E9] rounded-2xl p-6">
-            <h3 className="font-semibold text-[#006400] mb-3 text-lg">What ClearFile NG does:</h3>
-            <ul className="space-y-3">
-              {[
-                'Track all your income and expenses automatically',
-                'Calculate taxes based on Nigerian law (PITA, CITA, VAT)',
-                'Route obligations correctly to FIRS or your state revenue',
-                'Track your Tax Clearance Certificate readiness',
-                'AI assistant for Nigerian tax questions'
-              ].map((item, i) => (
-                <li key={i} className="flex items-start gap-3">
-                  <div className="w-5 h-5 bg-[#006400] rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Check className="w-3 h-3 text-white" />
-                  </div>
-                  <span className="text-slate-700">{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="text-center p-3 bg-slate-50 rounded-xl">
-            <p className="text-sm text-slate-500">
-              You registered as: <span className="font-semibold text-[#006400] capitalize">{user?.business_type?.replace('_', ' ')}</span>
-            </p>
-          </div>
+        <div className="space-y-3">
+          {['Auto-categorize transactions with AI', 'Calculate taxes (PITA, CITA, VAT)', 'Route obligations to FIRS or state revenue', 'Track TCC readiness', 'AI assistant for tax questions'].map((item, i) => (
+            <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-[#111111] border border-[#1E1E1E]">
+              <div className="w-5 h-5 rounded-full bg-[#00C896] flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Check className="w-3 h-3 text-black" />
+              </div>
+              <span className="text-sm text-[#A1A1AA]">{item}</span>
+            </div>
+          ))}
         </div>
       )
     },
     {
       title: 'Select Your State',
-      subtitle: 'We need this to route your PAYE and state taxes correctly',
+      subtitle: 'We need this to route PAYE and state taxes correctly.',
       content: (
-        <div className="space-y-6">
-          <div className="bg-gradient-to-br from-[#E8F5E9] to-[#C8E6C9] rounded-2xl p-6 border border-[#A5D6A7]">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-[#006400] rounded-full flex items-center justify-center">
-                <MapPin className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h3 className="font-bold text-[#006400] text-lg">State of Residence</h3>
-                <p className="text-sm text-[#004d00]">Your PAYE goes to your state revenue service</p>
-              </div>
+        <div className="space-y-4">
+          <div className="p-4 rounded-xl bg-[#111111] border border-[#1E1E1E]">
+            <div className="flex items-center gap-2 mb-3">
+              <MapPin className="w-4 h-4 text-[#00C896]" />
+              <span className="text-sm font-medium text-white">State of Residence</span>
             </div>
-            <div className="space-y-2">
-              <Label className="text-slate-700">Select your state</Label>
-              <Select value={selectedState} onValueChange={setSelectedState}>
-                <SelectTrigger className="rounded-xl bg-white" data-testid="onboarding-state-select">
-                  <SelectValue placeholder="Select state" />
-                </SelectTrigger>
-                <SelectContent>
-                  {states.map(s => (
-                    <SelectItem key={s.id} value={s.id}>{s.name} ({s.service})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <select value={selectedState} onChange={e => setSelectedState(e.target.value)}
+              className="w-full bg-[#0A0A0A] border border-[#1E1E1E] rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[#00C896]/50"
+              data-testid="onboarding-state-select"
+            >
+              {states.map(s => <option key={s.id} value={s.id}>{s.name} ({s.service})</option>)}
+            </select>
+          </div>
+        </div>
+      )
+    },
+    {
+      title: 'Your Data Is Secure',
+      subtitle: 'Bank-grade encryption for your finances.',
+      content: (
+        <div className="space-y-4">
+          <div className="p-5 rounded-xl bg-[#111111] border border-[#1E1E1E] text-center">
+            <Shield className="w-10 h-10 text-[#00C896] mx-auto mb-3" />
+            <p className="text-white font-medium mb-2">100% Read-Only Access</p>
+            <p className="text-sm text-[#A1A1AA]">We never store your bank password. Secured by 256-bit encryption.</p>
+            <div className="flex items-center justify-center gap-4 mt-4 text-xs text-[#555]">
+              <span className="flex items-center gap-1"><Lock className="w-3 h-3" /> SSL</span>
+              <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> NDPR</span>
+              <span className="flex items-center gap-1"><Check className="w-3 h-3" /> Read-Only</span>
             </div>
           </div>
         </div>
       )
     },
     {
-      title: 'Your Data Is Safe',
-      subtitle: 'Bank-grade security for your finances',
+      title: "You're All Set",
+      subtitle: 'Start tracking your finances.',
       content: (
-        <div className="space-y-6">
-          <div className="bg-gradient-to-br from-[#E8F5E9] to-[#C8E6C9] rounded-2xl p-6 border border-[#A5D6A7]">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-[#006400] rounded-full flex items-center justify-center">
-                <Shield className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h3 className="font-bold text-[#006400] text-lg">100% Read-Only Access</h3>
-                <p className="text-sm text-[#004d00]">We can NEVER move your money</p>
-              </div>
+        <div className="space-y-3">
+          {['Link your bank account (Pro plan)', 'Review and categorize transactions', 'Check your TCC progress and tax estimate'].map((item, i) => (
+            <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-[#111111] border border-[#1E1E1E]">
+              <span className="w-6 h-6 rounded-full bg-[#00C896] text-black flex items-center justify-center text-xs font-bold flex-shrink-0">{i + 1}</span>
+              <span className="text-sm text-[#A1A1AA]">{item}</span>
             </div>
-            <p className="text-slate-700 mb-4">
-              We never store your bank password. Read-only access only. Secured by 256-bit encryption.
-            </p>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="flex flex-col items-center p-3 bg-white/60 rounded-xl">
-                <Lock className="w-5 h-5 text-[#006400] mb-1" />
-                <span className="text-xs text-slate-600 text-center">256-bit SSL</span>
-              </div>
-              <div className="flex flex-col items-center p-3 bg-white/60 rounded-xl">
-                <Shield className="w-5 h-5 text-[#006400] mb-1" />
-                <span className="text-xs text-slate-600 text-center">NDPR Compliant</span>
-              </div>
-              <div className="flex flex-col items-center p-3 bg-white/60 rounded-xl">
-                <Check className="w-5 h-5 text-[#006400] mb-1" />
-                <span className="text-xs text-slate-600 text-center">Read-Only</span>
-              </div>
-            </div>
-            <p className="text-xs text-slate-500 mt-4 text-center">Secured by: Mono | Okra | Stitch</p>
-          </div>
-        </div>
-      )
-    },
-    {
-      title: "You're All Set!",
-      subtitle: 'Start tracking your finances',
-      content: (
-        <div className="space-y-6">
-          <div className="bg-[#FFF8E1] rounded-2xl p-6 border border-[#FFE082]">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-[#FFD700] rounded-full flex items-center justify-center">
-                <Wallet className="w-6 h-6 text-[#422006]" />
-              </div>
-              <div>
-                <h3 className="font-bold text-[#422006] text-lg">Quick Start Guide</h3>
-                <p className="text-sm text-[#6D4C41]">Get started in 3 easy steps</p>
-              </div>
-            </div>
-            <ol className="space-y-3">
-              {[
-                'Link your bank account (Growth/Business plans)',
-                'Review and categorize your transactions',
-                'Check your TCC progress and tax estimate'
-              ].map((item, i) => (
-                <li key={i} className="flex items-start gap-3">
-                  <span className="w-6 h-6 bg-[#FFD700] text-[#422006] rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">
-                    {i + 1}
-                  </span>
-                  <span className="text-slate-700">{item}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-          <p className="text-center text-slate-500 text-sm">
-            You're on the <span className="font-semibold text-[#006400] capitalize">{user?.subscription_plan || 'Starter'}</span> plan.
-            You can upgrade anytime in Settings.
-          </p>
+          ))}
         </div>
       )
     }
   ];
 
-  const currentStep = steps[step - 1];
+  const current = steps[step - 1];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#E8F5E9] via-[#FAFAFA] to-[#FFF8E1] flex items-center justify-center p-4">
-      <div className="w-full max-w-lg">
+    <div className="min-h-screen bg-[#050505] flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Progress */}
         <div className="flex items-center justify-center gap-2 mb-8">
           {steps.map((_, i) => (
-            <div
-              key={i}
-              className={`h-2 rounded-full transition-all ${
-                i + 1 <= step ? 'bg-[#006400] w-10' : 'bg-slate-200 w-6'
-              }`}
-            />
+            <div key={i} className={`h-1 rounded-full transition-all ${i + 1 <= step ? 'bg-[#00C896] w-10' : 'bg-[#1E1E1E] w-6'}`} />
           ))}
         </div>
 
-        <Card className="border-slate-200 shadow-xl rounded-2xl overflow-hidden">
-          <CardContent className="p-8">
-            <div className="text-center mb-6">
-              <h1 className="text-2xl font-bold text-[#022c22] mb-2" style={{ fontFamily: 'Outfit' }}>
-                {currentStep.title}
-              </h1>
-              <p className="text-slate-600">{currentStep.subtitle}</p>
-            </div>
-
-            {currentStep.content}
-
-            <div className="flex gap-3 mt-8">
-              {step > 1 && (
-                <Button
-                  variant="outline"
-                  onClick={() => setStep(step - 1)}
-                  className="flex-1 rounded-xl border-slate-200"
-                  data-testid="onboarding-back-btn"
-                >
-                  Back
-                </Button>
-              )}
-              <Button
-                onClick={() => step < steps.length ? setStep(step + 1) : completeOnboarding()}
-                className="flex-1 bg-[#006400] hover:bg-[#004d00] text-white rounded-xl"
-                data-testid="onboarding-next-btn"
-              >
-                {step < steps.length ? (
-                  <>Continue <ArrowRight className="w-4 h-4 ml-2" /></>
-                ) : (
-                  'Go to Dashboard'
-                )}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="card-dark p-8 animate-fade-in">
+          <div className="text-center mb-6">
+            <h1 className="text-xl font-display font-semibold text-white mb-1">{current.title}</h1>
+            <p className="text-sm text-[#A1A1AA]">{current.subtitle}</p>
+          </div>
+          {current.content}
+          <div className="flex gap-3 mt-6">
+            {step > 1 && (
+              <button onClick={() => setStep(step - 1)} className="flex-1 btn-ghost py-3 text-sm flex items-center justify-center gap-2" data-testid="onboarding-back-btn">
+                <ArrowLeft className="w-4 h-4" /> Back
+              </button>
+            )}
+            <button
+              onClick={() => step < steps.length ? setStep(step + 1) : completeOnboarding()}
+              className="flex-1 btn-primary py-3 text-sm flex items-center justify-center gap-2"
+              data-testid="onboarding-next-btn"
+            >
+              {step < steps.length ? <>Continue <ArrowRight className="w-4 h-4" /></> : 'Launch Dashboard'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

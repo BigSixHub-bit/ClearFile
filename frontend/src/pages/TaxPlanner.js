@@ -84,17 +84,17 @@ export default function TaxPlanner() {
     <Layout>
       <div className="space-y-6 pb-20 lg:pb-0">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#022c22]" style={{ fontFamily: 'Outfit' }}>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white" style={{ fontFamily: 'Clash Display, Satoshi, sans-serif' }}>
             Tax Planner
           </h1>
-          <p className="text-slate-500">What-if tax scenario simulator</p>
+          <p className="text-[#A1A1AA]">What-if tax scenario simulator</p>
         </div>
 
         {/* Input Card */}
-        <Card className="rounded-2xl border-slate-200" data-testid="tax-planner-inputs">
+        <Card className="card-dark" data-testid="tax-planner-inputs">
           <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2" style={{ fontFamily: 'Outfit' }}>
-              <Calculator className="w-5 h-5 text-[#006400]" />
+            <CardTitle className="text-lg flex items-center gap-2" style={{ fontFamily: 'Clash Display, Satoshi, sans-serif' }}>
+              <Calculator className="w-5 h-5 text-[#00C896]" />
               Simulate Your Tax Scenario
             </CardTitle>
           </CardHeader>
@@ -127,7 +127,7 @@ export default function TaxPlanner() {
                 </Select>
               </div>
             </div>
-            <Button onClick={simulate} disabled={loading} className="w-full bg-[#006400] hover:bg-[#004d00] text-white rounded-xl" data-testid="simulate-btn">
+            <Button onClick={simulate} disabled={loading} className="w-full bg-[#00C896] hover:bg-[#00dba6] text-white rounded-xl" data-testid="simulate-btn">
               {loading ? 'Calculating...' : 'Calculate Tax Estimate'}
             </Button>
           </CardContent>
@@ -138,9 +138,9 @@ export default function TaxPlanner() {
           <>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Pie Chart */}
-              <Card className="rounded-2xl border-slate-200" data-testid="tax-planner-chart">
+              <Card className="card-dark" data-testid="tax-planner-chart">
                 <CardHeader>
-                  <CardTitle className="text-lg" style={{ fontFamily: 'Outfit' }}>Income Breakdown</CardTitle>
+                  <CardTitle className="text-lg" style={{ fontFamily: 'Clash Display, Satoshi, sans-serif' }}>Income Breakdown</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="h-64">
@@ -158,7 +158,7 @@ export default function TaxPlanner() {
                       <div key={i} className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i] }}></div>
-                          <span className="text-sm text-slate-600">{item.name}</span>
+                          <span className="text-sm text-[#A1A1AA]">{item.name}</span>
                         </div>
                         <span className="text-sm font-medium">{formatCurrency(item.value)}</span>
                       </div>
@@ -168,57 +168,57 @@ export default function TaxPlanner() {
               </Card>
 
               {/* Numbers */}
-              <Card className="rounded-2xl border-slate-200" data-testid="tax-planner-results">
+              <Card className="card-dark" data-testid="tax-planner-results">
                 <CardHeader>
-                  <CardTitle className="text-lg" style={{ fontFamily: 'Outfit' }}>Tax Estimate</CardTitle>
+                  <CardTitle className="text-lg" style={{ fontFamily: 'Clash Display, Satoshi, sans-serif' }}>Tax Estimate</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="flex justify-between p-3 bg-[#E8F5E9] rounded-xl">
-                    <span className="text-slate-600">Income Tax ({result.tax_type})</span>
-                    <span className="font-bold text-[#006400]" data-testid="result-income-tax">{formatCurrency(result.income_tax)}</span>
+                  <div className="flex justify-between p-3 bg-[#00C896]/10 rounded-xl">
+                    <span className="text-[#A1A1AA]">Income Tax ({result.tax_type})</span>
+                    <span className="font-bold text-[#00C896]" data-testid="result-income-tax">{formatCurrency(result.income_tax)}</span>
                   </div>
                   {result.vat > 0 && (
-                    <div className="flex justify-between p-3 bg-blue-50 rounded-xl">
-                      <span className="text-slate-600">VAT (7.5%)</span>
-                      <span className="font-bold text-blue-600" data-testid="result-vat">{formatCurrency(result.vat)}</span>
+                    <div className="flex justify-between p-3 bg-[#3B82F6]/10 rounded-xl">
+                      <span className="text-[#A1A1AA]">VAT (7.5%)</span>
+                      <span className="font-bold text-[#3B82F6]" data-testid="result-vat">{formatCurrency(result.vat)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between p-4 bg-[#006400] rounded-xl text-white">
+                  <div className="flex justify-between p-4 bg-[#00C896] rounded-xl text-white">
                     <span className="font-bold">Total Tax</span>
                     <span className="font-bold text-xl" data-testid="result-total-tax">{formatCurrency(result.total_tax)}</span>
                   </div>
-                  <div className="flex justify-between p-3 bg-[#FFF8E1] rounded-xl">
-                    <span className="text-slate-600">Effective Tax Rate</span>
-                    <span className="font-bold text-[#422006]">{result.effective_tax_rate}%</span>
+                  <div className="flex justify-between p-3 bg-[#F59E0B]/10 rounded-xl">
+                    <span className="text-[#A1A1AA]">Effective Tax Rate</span>
+                    <span className="font-bold text-white">{result.effective_tax_rate}%</span>
                   </div>
-                  <div className="flex justify-between p-3 bg-slate-50 rounded-xl">
-                    <span className="text-slate-600">After-Tax Income</span>
-                    <span className="font-bold text-[#006400]">{formatCurrency(result.after_tax_income)}</span>
+                  <div className="flex justify-between p-3 bg-[#0A0A0A] rounded-xl">
+                    <span className="text-[#A1A1AA]">After-Tax Income</span>
+                    <span className="font-bold text-[#00C896]">{formatCurrency(result.after_tax_income)}</span>
                   </div>
-                  <div className="flex justify-between p-3 bg-amber-50 rounded-xl border border-amber-200">
-                    <span className="text-slate-600">Monthly Savings Needed</span>
-                    <span className="font-bold text-amber-700">{formatCurrency(result.monthly_tax_savings)}</span>
+                  <div className="flex justify-between p-3 bg-amber-500/10 rounded-xl border border-amber-500/20">
+                    <span className="text-[#A1A1AA]">Monthly Savings Needed</span>
+                    <span className="font-bold text-[#F59E0B]">{formatCurrency(result.monthly_tax_savings)}</span>
                   </div>
                 </CardContent>
               </Card>
             </div>
 
             {/* Set Aside */}
-            <Card className="rounded-2xl border-[#FFD700] bg-[#FFF8E1]" data-testid="set-aside-card">
+            <Card className="rounded-2xl border-[#FFD700] bg-[#F59E0B]/10" data-testid="set-aside-card">
               <CardContent className="p-6">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-[#FFD700] rounded-xl flex items-center justify-center flex-shrink-0">
-                    <PiggyBank className="w-6 h-6 text-[#422006]" />
+                  <div className="w-12 h-12 bg-[#F59E0B] rounded-xl flex items-center justify-center flex-shrink-0">
+                    <PiggyBank className="w-6 h-6 text-white" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-bold text-[#422006] text-lg mb-1">Tax Reserve</h3>
-                    <p className="text-slate-600 text-sm mb-3">
-                      Current reserve: <span className="font-bold text-[#006400]">{formatCurrency(reserve)}</span>
+                    <h3 className="font-bold text-white text-lg mb-1">Tax Reserve</h3>
+                    <p className="text-[#A1A1AA] text-sm mb-3">
+                      Current reserve: <span className="font-bold text-[#00C896]">{formatCurrency(reserve)}</span>
                       {result && <> | Recommended monthly: <span className="font-bold">{formatCurrency(result.monthly_tax_savings)}</span></>}
                     </p>
                     <div className="flex gap-2">
-                      <Input type="number" placeholder="Amount to set aside" value={setAsideAmount} onChange={e => setSetAsideAmount(e.target.value)} className="rounded-xl flex-1 bg-white" data-testid="set-aside-input" />
-                      <Button onClick={handleSetAside} className="bg-[#006400] hover:bg-[#004d00] text-white rounded-xl" data-testid="set-aside-btn">
+                      <Input type="number" placeholder="Amount to set aside" value={setAsideAmount} onChange={e => setSetAsideAmount(e.target.value)} className="rounded-xl flex-1 bg-[#111111]" data-testid="set-aside-input" />
+                      <Button onClick={handleSetAside} className="bg-[#00C896] hover:bg-[#00dba6] text-white rounded-xl" data-testid="set-aside-btn">
                         <Wallet className="w-4 h-4 mr-2" />
                         Set Aside
                       </Button>

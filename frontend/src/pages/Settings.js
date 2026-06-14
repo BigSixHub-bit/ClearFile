@@ -250,29 +250,29 @@ export default function Settings() {
       <div className="space-y-6 pb-20 lg:pb-0">
         {/* Header */}
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#022c22]" style={{ fontFamily: 'Outfit' }}>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white" style={{ fontFamily: 'Clash Display, Satoshi, sans-serif' }}>
             {t('settings')}
           </h1>
-          <p className="text-slate-500">{t('manageAccount')}</p>
+          <p className="text-[#A1A1AA]">{t('manageAccount')}</p>
         </div>
 
         {/* Profile */}
-        <Card className="rounded-2xl border-slate-200">
+        <Card className="card-dark">
           <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2" style={{ fontFamily: 'Outfit' }}>
-              <User className="w-5 h-5 text-[#006400]" />
+            <CardTitle className="text-lg flex items-center gap-2" style={{ fontFamily: 'Clash Display, Satoshi, sans-serif' }}>
+              <User className="w-5 h-5 text-[#00C896]" />
               {t('profile')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-[#006400] rounded-2xl flex items-center justify-center text-white text-2xl font-bold">
+              <div className="w-16 h-16 bg-[#00C896] rounded-2xl flex items-center justify-center text-white text-2xl font-bold">
                 {user?.name?.charAt(0) || 'U'}
               </div>
               <div>
-                <p className="font-bold text-[#022c22]" data-testid="user-name">{user?.name}</p>
-                <p className="text-slate-500" data-testid="user-email">{user?.email}</p>
-                <Badge className="mt-1 bg-[#E8F5E9] text-[#006400] capitalize" data-testid="user-business-type">
+                <p className="font-bold text-white" data-testid="user-name">{user?.name}</p>
+                <p className="text-[#A1A1AA]" data-testid="user-email">{user?.email}</p>
+                <Badge className="mt-1 bg-[#00C896]/10 text-[#00C896] capitalize" data-testid="user-business-type">
                   {user?.business_type}
                 </Badge>
               </div>
@@ -281,14 +281,14 @@ export default function Settings() {
         </Card>
 
         {/* Subscription */}
-        <Card className="rounded-2xl border-slate-200">
+        <Card className="card-dark">
           <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2" style={{ fontFamily: 'Outfit' }}>
-              <Crown className="w-5 h-5 text-[#FFD700]" />
+            <CardTitle className="text-lg flex items-center gap-2" style={{ fontFamily: 'Clash Display, Satoshi, sans-serif' }}>
+              <Crown className="w-5 h-5 text-[#F59E0B]" />
               Subscription Plan
             </CardTitle>
             <CardDescription>
-              Current plan: <span className="font-bold text-[#006400] capitalize">{user?.subscription_plan}</span>
+              Current plan: <span className="font-bold text-[#00C896] capitalize">{user?.subscription_plan}</span>
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -298,32 +298,32 @@ export default function Settings() {
                   key={plan.id}
                   className={`p-6 rounded-2xl border-2 transition-all ${
                     user?.subscription_plan === plan.id || (user?.subscription_plan === 'growth' && plan.id === 'pro') || (user?.subscription_plan === 'business' && plan.id === 'pro')
-                      ? 'border-[#006400] bg-[#E8F5E9]'
+                      ? 'border-[#006400] bg-[#00C896]/10'
                       : plan.popular
-                      ? 'border-[#006400] shadow-lg shadow-[#006400]/10'
-                      : 'border-slate-200'
+                      ? 'border-[#006400]  shadow-[#006400]/10'
+                      : 'border-[#1E1E1E]'
                   }`}
                   data-testid={`plan-option-${plan.id}`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <h4 className="font-bold text-lg text-[#022c22]">{plan.name}</h4>
+                    <h4 className="font-bold text-lg text-white">{plan.name}</h4>
                     <div className="flex gap-2">
                       {plan.popular && (
-                        <Badge className="bg-[#FFD700] text-[#422006] font-bold">Most Popular</Badge>
+                        <Badge className="bg-[#F59E0B] text-white font-bold">Most Popular</Badge>
                       )}
                       {(user?.subscription_plan === plan.id || (user?.subscription_plan === 'growth' && plan.id === 'pro') || (user?.subscription_plan === 'business' && plan.id === 'pro')) && (
-                        <Badge className="bg-[#006400] text-white">Current</Badge>
+                        <Badge className="bg-[#00C896] text-white">Current</Badge>
                       )}
                     </div>
                   </div>
-                  <p className="text-xs text-slate-500 mb-3">{plan.target}</p>
-                  <p className="text-3xl font-bold text-[#006400] mb-4">
-                    {formatCurrency(plan.price)}<span className="text-sm font-normal text-slate-500">/mo</span>
+                  <p className="text-xs text-[#A1A1AA] mb-3">{plan.target}</p>
+                  <p className="text-3xl font-bold text-[#00C896] mb-4">
+                    {formatCurrency(plan.price)}<span className="text-sm font-normal text-[#A1A1AA]">/mo</span>
                   </p>
                   <ul className="space-y-2 mb-6">
                     {plan.features.map((f, i) => (
-                      <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
-                        <Check className="w-4 h-4 text-[#006400] flex-shrink-0 mt-0.5" />
+                      <li key={i} className="text-sm text-[#A1A1AA] flex items-start gap-2">
+                        <Check className="w-4 h-4 text-[#00C896] flex-shrink-0 mt-0.5" />
                         {f}
                       </li>
                     ))}
@@ -334,8 +334,8 @@ export default function Settings() {
                       disabled={loading}
                       className={`w-full rounded-xl py-5 ${
                         plan.popular
-                          ? 'bg-[#006400] hover:bg-[#004d00] text-white'
-                          : 'bg-[#E8F5E9] hover:bg-[#C8E6C9] text-[#006400]'
+                          ? 'bg-[#00C896] hover:bg-[#00dba6] text-white'
+                          : 'bg-[#00C896]/10 hover:bg-[#00C896]/15 text-[#00C896]'
                       }`}
                       data-testid={`upgrade-to-${plan.id}`}
                     >
@@ -349,11 +349,11 @@ export default function Settings() {
         </Card>
 
         {/* Bank Accounts */}
-        <Card className="rounded-2xl border-slate-200">
+        <Card className="card-dark">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2" style={{ fontFamily: 'Outfit' }}>
-                <Building className="w-5 h-5 text-[#006400]" />
+              <CardTitle className="text-lg flex items-center gap-2" style={{ fontFamily: 'Clash Display, Satoshi, sans-serif' }}>
+                <Building className="w-5 h-5 text-[#00C896]" />
                 Bank Accounts
               </CardTitle>
               {user?.subscription_plan !== 'starter' && (
@@ -361,7 +361,7 @@ export default function Settings() {
                   <Button 
                     onClick={handleMonoLinking}
                     disabled={loading}
-                    className="bg-[#006400] hover:bg-[#004d00] text-white rounded-xl" 
+                    className="bg-[#00C896] hover:bg-[#00dba6] text-white rounded-xl" 
                     data-testid="link-bank-btn"
                   >
                     <Link2 className="w-4 h-4 mr-2" />
@@ -379,8 +379,8 @@ export default function Settings() {
                 <DialogTitle>Link Bank Account (Demo Mode)</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleLinkBank} className="space-y-4">
-                <div className="bg-[#FFF8E1] p-3 rounded-xl border border-[#FFE082]">
-                  <p className="text-xs text-[#6D4C41]">
+                <div className="bg-[#F59E0B]/10 p-3 rounded-xl border border-[#F59E0B]/20">
+                  <p className="text-xs text-[#A1A1AA]">
                     <strong>Note:</strong> This is a simulated bank linking for demo purposes. 
                     Real Mono/Okra integration requires API keys.
                   </p>
@@ -430,7 +430,7 @@ export default function Settings() {
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-[#006400] hover:bg-[#004d00] text-white rounded-xl"
+                  className="w-full bg-[#00C896] hover:bg-[#00dba6] text-white rounded-xl"
                   data-testid="submit-link-bank"
                 >
                   {loading ? 'Linking...' : 'Link Bank Account (Demo)'}
@@ -441,12 +441,12 @@ export default function Settings() {
 
           <CardContent>
             {user?.subscription_plan === 'starter' ? (
-              <div className="text-center py-8 bg-slate-50 rounded-xl">
+              <div className="text-center py-8 bg-[#0A0A0A] rounded-xl">
                 <Shield className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-600 mb-2">Bank linking requires Growth or Business plan</p>
+                <p className="text-[#A1A1AA] mb-2">Bank linking requires Growth or Business plan</p>
                 <Button
                   onClick={() => handleUpgradePlan('growth')}
-                  className="bg-[#006400] hover:bg-[#004d00] text-white rounded-xl"
+                  className="bg-[#00C896] hover:bg-[#00dba6] text-white rounded-xl"
                   data-testid="upgrade-for-bank"
                 >
                   Upgrade to Growth
@@ -455,18 +455,18 @@ export default function Settings() {
             ) : (
               <>
                 {/* Trust Signal for Bank Linking */}
-                <div className="mb-4 p-4 bg-[#E8F5E9] border border-[#A5D6A7] rounded-xl">
+                <div className="mb-4 p-4 bg-[#00C896]/10 border border-[#00C896]/20 rounded-xl">
                   <div className="flex items-center gap-2 mb-2">
-                    <Shield className="w-5 h-5 text-[#006400]" />
-                    <span className="font-medium text-[#006400] text-sm">Your bank data is secure</span>
+                    <Shield className="w-5 h-5 text-[#00C896]" />
+                    <span className="font-medium text-[#00C896] text-sm">Your bank data is secure</span>
                   </div>
-                  <p className="text-xs text-slate-600">We never store your bank password. Read-only access only. Secured by 256-bit encryption.</p>
-                  <div className="flex items-center gap-3 mt-2 text-xs text-slate-400">
+                  <p className="text-xs text-[#A1A1AA]">We never store your bank password. Read-only access only. Secured by 256-bit encryption.</p>
+                  <div className="flex items-center gap-3 mt-2 text-xs text-[#555]">
                     <span>Mono</span><span>Okra</span><span>Stitch</span>
                   </div>
                 </div>
                 {bankAccounts.length === 0 ? (
-                  <div className="text-center py-8 text-slate-400">
+                  <div className="text-center py-8 text-[#555]">
                     <Building className="w-12 h-12 mx-auto mb-3 opacity-50" />
                     <p>No bank accounts linked yet</p>
                   </div>
@@ -475,19 +475,19 @@ export default function Settings() {
                     {bankAccounts.map((account, idx) => (
                       <div
                         key={account.id || idx}
-                        className="flex items-center justify-between p-4 bg-slate-50 rounded-xl"
+                        className="flex items-center justify-between p-4 bg-[#0A0A0A] rounded-xl"
                         data-testid={`bank-account-${idx}`}
                       >
                         <div>
-                          <p className="font-medium text-[#022c22]">{account.bank_name}</p>
-                          <p className="text-sm text-slate-500">{account.account_number} • {account.account_name}</p>
-                          <p className="text-sm font-medium text-[#006400]">{formatCurrency(account.balance)}</p>
+                          <p className="font-medium text-white">{account.bank_name}</p>
+                          <p className="text-sm text-[#A1A1AA]">{account.account_number} • {account.account_name}</p>
+                          <p className="text-sm font-medium text-[#00C896]">{formatCurrency(account.balance)}</p>
                         </div>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleUnlinkBank(account.id)}
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
                           data-testid={`unlink-bank-${idx}`}
                         >
                           <Unlink className="w-4 h-4 mr-1" />
@@ -503,17 +503,17 @@ export default function Settings() {
         </Card>
 
         {/* Preferences */}
-        <Card className="rounded-2xl border-slate-200">
+        <Card className="card-dark">
           <CardHeader>
-            <CardTitle className="text-lg" style={{ fontFamily: 'Outfit' }}>{t('preferences')}</CardTitle>
+            <CardTitle className="text-lg" style={{ fontFamily: 'Clash Display, Satoshi, sans-serif' }}>{t('preferences')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+            <div className="flex items-center justify-between p-4 bg-[#0A0A0A] rounded-xl">
               <div className="flex items-center gap-3">
-                <Moon className="w-5 h-5 text-slate-600" />
+                <Moon className="w-5 h-5 text-[#A1A1AA]" />
                 <div>
-                  <p className="font-medium text-[#022c22]">{t('darkMode')}</p>
-                  <p className="text-sm text-slate-500">{t('darkModeDesc')}</p>
+                  <p className="font-medium text-white">{t('darkMode')}</p>
+                  <p className="text-sm text-[#A1A1AA]">{t('darkModeDesc')}</p>
                 </div>
               </div>
               <Switch
@@ -523,12 +523,12 @@ export default function Settings() {
               />
             </div>
 
-            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+            <div className="flex items-center justify-between p-4 bg-[#0A0A0A] rounded-xl">
               <div className="flex items-center gap-3">
-                <Languages className="w-5 h-5 text-slate-600" />
+                <Languages className="w-5 h-5 text-[#A1A1AA]" />
                 <div>
-                  <p className="font-medium text-[#022c22]">{t('pidginMode')}</p>
-                  <p className="text-sm text-slate-500">{t('pidginModeDesc')}</p>
+                  <p className="font-medium text-white">{t('pidginMode')}</p>
+                  <p className="text-sm text-[#A1A1AA]">{t('pidginModeDesc')}</p>
                 </div>
               </div>
               <Switch
@@ -542,10 +542,10 @@ export default function Settings() {
 
         {/* Export Data */}
         {user?.subscription_plan !== 'starter' && (
-          <Card className="rounded-2xl border-slate-200">
+          <Card className="card-dark">
             <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2" style={{ fontFamily: 'Outfit' }}>
-                <FileDown className="w-5 h-5 text-[#006400]" />
+              <CardTitle className="text-lg flex items-center gap-2" style={{ fontFamily: 'Clash Display, Satoshi, sans-serif' }}>
+                <FileDown className="w-5 h-5 text-[#00C896]" />
                 Export Data
               </CardTitle>
               <CardDescription>{t('exportDesc')}</CardDescription>
@@ -554,7 +554,7 @@ export default function Settings() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Button
                   variant="outline"
-                  className="rounded-xl border-slate-200 hover:bg-[#E8F5E9]"
+                  className="rounded-xl border-[#1E1E1E] hover:bg-[#00C896]/10"
                   onClick={() => window.open(`${API}/api/export/transactions?format=csv&period=all`, '_blank')}
                   data-testid="export-transactions-csv"
                 >
@@ -563,7 +563,7 @@ export default function Settings() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="rounded-xl border-slate-200 hover:bg-[#E8F5E9]"
+                  className="rounded-xl border-[#1E1E1E] hover:bg-[#00C896]/10"
                   onClick={() => window.open(`${API}/api/export/tax-report?format=csv`, '_blank')}
                   data-testid="export-tax-report-csv"
                 >
@@ -571,7 +571,7 @@ export default function Settings() {
                   Tax Report (CSV)
                 </Button>
                 <Button
-                  className="rounded-xl bg-[#006400] hover:bg-[#004d00] text-white"
+                  className="rounded-xl bg-[#00C896] hover:bg-[#00dba6] text-white"
                   onClick={() => window.open(`${API}/api/export/tax-report?format=pdf`, '_blank')}
                   data-testid="export-tax-report-pdf"
                 >
@@ -579,7 +579,7 @@ export default function Settings() {
                   Tax Report (PDF)
                 </Button>
               </div>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-[#A1A1AA]">
                 Note: You'll need to be logged in for exports to work. If download fails, try refreshing the page first.
               </p>
             </CardContent>
@@ -588,10 +588,10 @@ export default function Settings() {
 
         {/* Team Management (Business Plan) */}
         {user?.subscription_plan === 'business' && (
-          <Card className="rounded-2xl border-slate-200">
+          <Card className="card-dark">
             <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2" style={{ fontFamily: 'Outfit' }}>
-                <Users className="w-5 h-5 text-[#006400]" />
+              <CardTitle className="text-lg flex items-center gap-2" style={{ fontFamily: 'Clash Display, Satoshi, sans-serif' }}>
+                <Users className="w-5 h-5 text-[#00C896]" />
                 Team Access
               </CardTitle>
               <CardDescription>{t('teamDesc')}</CardDescription>
@@ -618,7 +618,7 @@ export default function Settings() {
                 <Button 
                   onClick={handleInviteTeamMember}
                   disabled={!inviteEmail || loading}
-                  className="bg-[#006400] hover:bg-[#004d00] text-white rounded-xl"
+                  className="bg-[#00C896] hover:bg-[#00dba6] text-white rounded-xl"
                   data-testid="invite-btn"
                 >
                   Invite
@@ -628,16 +628,16 @@ export default function Settings() {
               {teamMembers.length > 0 && (
                 <div className="space-y-2">
                   {teamMembers.map((member, idx) => (
-                    <div key={member.id || idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+                    <div key={member.id || idx} className="flex items-center justify-between p-3 bg-[#0A0A0A] rounded-xl">
                       <div>
-                        <p className="font-medium text-[#022c22]">{member.email}</p>
-                        <p className="text-xs text-slate-500 capitalize">{member.role} • {member.status}</p>
+                        <p className="font-medium text-white">{member.email}</p>
+                        <p className="text-xs text-[#A1A1AA] capitalize">{member.role} • {member.status}</p>
                       </div>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => handleRemoveTeamMember(member.id)}
-                        className="text-red-500 hover:text-red-700"
+                        className="text-red-500 hover:text-red-400"
                         data-testid={`remove-member-${idx}`}
                       >
                         Remove
@@ -651,15 +651,15 @@ export default function Settings() {
         )}
 
         {/* Security */}
-        <Card className="rounded-2xl border-slate-200 bg-[#E8F5E9]">
+        <Card className="card-dark bg-[#00C896]/10">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-[#006400] rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-[#00C896] rounded-xl flex items-center justify-center">
                 <Shield className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="font-bold text-[#006400]">{t('bankSecurity')}</h3>
-                <p className="text-sm text-slate-600">
+                <h3 className="font-bold text-[#00C896]">{t('bankSecurity')}</h3>
+                <p className="text-sm text-[#A1A1AA]">
                   {t('bankSecurityDesc')}
                 </p>
               </div>

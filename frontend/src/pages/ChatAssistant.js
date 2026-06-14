@@ -76,14 +76,14 @@ export default function ChatAssistant() {
       <div className="flex flex-col h-[calc(100vh-180px)] lg:h-[calc(100vh-140px)]">
         {/* Header */}
         <div className="mb-4">
-          <h1 className="text-2xl sm:text-3xl font-bold text-[#022c22]" style={{ fontFamily: 'Outfit' }}>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white" style={{ fontFamily: 'Clash Display, Satoshi, sans-serif' }}>
             {t('chatAssistant')}
           </h1>
-          <p className="text-slate-500">Ask me anything about Nigerian taxes</p>
+          <p className="text-[#A1A1AA]">Ask me anything about Nigerian taxes</p>
         </div>
 
         {/* Chat Area */}
-        <Card className="flex-1 rounded-2xl border-slate-200 flex flex-col overflow-hidden">
+        <Card className="flex-1 card-dark flex flex-col overflow-hidden">
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {messages.map((message, idx) => (
@@ -93,32 +93,32 @@ export default function ChatAssistant() {
                 data-testid={`chat-message-${idx}`}
               >
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  message.role === 'user' ? 'bg-[#006400]' : 'bg-[#E8F5E9]'
+                  message.role === 'user' ? 'bg-[#00C896]' : 'bg-[#00C896]/10'
                 }`}>
                   {message.role === 'user' ? (
                     <User className="w-4 h-4 text-white" />
                   ) : (
-                    <Bot className="w-4 h-4 text-[#006400]" />
+                    <Bot className="w-4 h-4 text-[#00C896]" />
                   )}
                 </div>
                 <div className={`max-w-[80%] rounded-2xl p-4 ${
                   message.role === 'user'
-                    ? 'bg-[#006400] text-white'
-                    : 'bg-slate-100 text-slate-700'
+                    ? 'bg-[#00C896] text-white'
+                    : 'bg-slate-100 text-[#ccc]'
                 }`}>
                   {message.role === 'assistant' ? (
                     <div className="prose prose-sm prose-slate max-w-none overflow-x-auto">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={{
-                          h1: ({children}) => <h1 className="text-lg font-bold text-[#022c22] mb-2 mt-0">{children}</h1>,
-                          h2: ({children}) => <h2 className="text-base font-bold text-[#022c22] mb-2 mt-3">{children}</h2>,
-                          h3: ({children}) => <h3 className="text-sm font-semibold text-[#022c22] mb-1 mt-2">{children}</h3>,
+                          h1: ({children}) => <h1 className="text-lg font-bold text-white mb-2 mt-0">{children}</h1>,
+                          h2: ({children}) => <h2 className="text-base font-bold text-white mb-2 mt-3">{children}</h2>,
+                          h3: ({children}) => <h3 className="text-sm font-semibold text-white mb-1 mt-2">{children}</h3>,
                           p: ({children}) => <p className="text-sm mb-2 last:mb-0">{children}</p>,
                           ul: ({children}) => <ul className="list-disc list-inside text-sm mb-2 space-y-1">{children}</ul>,
                           ol: ({children}) => <ol className="list-decimal list-inside text-sm mb-2 space-y-1">{children}</ol>,
                           li: ({children}) => <li className="text-sm">{children}</li>,
-                          strong: ({children}) => <strong className="font-semibold text-[#006400]">{children}</strong>,
+                          strong: ({children}) => <strong className="font-semibold text-[#00C896]">{children}</strong>,
                           em: ({children}) => <em className="italic">{children}</em>,
                           code: ({children}) => <code className="bg-slate-200 px-1 py-0.5 rounded text-xs">{children}</code>,
                           table: ({children}) => (
@@ -128,11 +128,11 @@ export default function ChatAssistant() {
                               </table>
                             </div>
                           ),
-                          thead: ({children}) => <thead className="bg-[#E8F5E9]">{children}</thead>,
+                          thead: ({children}) => <thead className="bg-[#00C896]/10">{children}</thead>,
                           tbody: ({children}) => <tbody className="divide-y divide-slate-200">{children}</tbody>,
-                          tr: ({children}) => <tr className="hover:bg-slate-50">{children}</tr>,
+                          tr: ({children}) => <tr className="hover:bg-[#0A0A0A]">{children}</tr>,
                           th: ({children}) => (
-                            <th className="px-3 py-2 text-left font-semibold text-[#006400] border border-slate-300">
+                            <th className="px-3 py-2 text-left font-semibold text-[#00C896] border border-slate-300">
                               {children}
                             </th>
                           ),
@@ -154,11 +154,11 @@ export default function ChatAssistant() {
             ))}
             {loading && (
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#E8F5E9] flex items-center justify-center">
-                  <Bot className="w-4 h-4 text-[#006400]" />
+                <div className="w-8 h-8 rounded-full bg-[#00C896]/10 flex items-center justify-center">
+                  <Bot className="w-4 h-4 text-[#00C896]" />
                 </div>
                 <div className="bg-slate-100 rounded-2xl p-4">
-                  <Loader2 className="w-5 h-5 text-[#006400] animate-spin" />
+                  <Loader2 className="w-5 h-5 text-[#00C896] animate-spin" />
                 </div>
               </div>
             )}
@@ -168,14 +168,14 @@ export default function ChatAssistant() {
           {/* Suggestions */}
           {messages.length <= 1 && (
             <div className="px-4 pb-2">
-              <p className="text-xs text-slate-400 mb-2">Suggested questions:</p>
+              <p className="text-xs text-[#555] mb-2">Suggested questions:</p>
               <div className="flex flex-wrap gap-2">
                 {suggestedQuestions.map((q, idx) => (
                   <Button
                     key={idx}
                     variant="outline"
                     size="sm"
-                    className="rounded-full text-xs border-[#006400] text-[#006400] hover:bg-[#E8F5E9]"
+                    className="rounded-full text-xs border-[#006400] text-[#00C896] hover:bg-[#00C896]/10"
                     onClick={() => setInput(q)}
                     data-testid={`suggestion-${idx}`}
                   >
@@ -187,7 +187,7 @@ export default function ChatAssistant() {
           )}
 
           {/* Input */}
-          <form onSubmit={handleSend} className="p-4 border-t border-slate-200">
+          <form onSubmit={handleSend} className="p-4 border-t border-[#1E1E1E]">
             <div className="flex gap-2">
               <Input
                 value={input}
@@ -200,7 +200,7 @@ export default function ChatAssistant() {
               <Button
                 type="submit"
                 disabled={loading || !input.trim()}
-                className="bg-[#006400] hover:bg-[#004d00] text-white rounded-xl"
+                className="bg-[#00C896] hover:bg-[#00dba6] text-white rounded-xl"
                 data-testid="chat-send-btn"
               >
                 <Send className="w-4 h-4" />

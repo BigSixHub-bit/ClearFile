@@ -147,15 +147,15 @@ export default function Transactions() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-[#022c22]" style={{ fontFamily: 'Outfit' }}>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white" style={{ fontFamily: 'Clash Display, Satoshi, sans-serif' }}>
               {t('transactions')}
             </h1>
-            <p className="text-slate-500">Track your income and expenses</p>
+            <p className="text-[#A1A1AA]">Track your income and expenses</p>
           </div>
           <div className="flex gap-2">
             <Dialog open={isReceiptDialogOpen} onOpenChange={setIsReceiptDialogOpen}>
               <DialogTrigger asChild>
-                <Button variant="outline" className="rounded-xl border-slate-200" data-testid="upload-receipt-btn">
+                <Button variant="outline" className="rounded-xl border-[#1E1E1E]" data-testid="upload-receipt-btn">
                   <Camera className="w-4 h-4 mr-2" />
                   {t('scanReceipt')}
                 </Button>
@@ -165,10 +165,10 @@ export default function Transactions() {
                   <DialogTitle>{t('scanReceipt')}</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
-                  <div className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center">
-                    <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                    <p className="text-slate-600 mb-2">Upload a receipt image</p>
-                    <p className="text-sm text-slate-400">JPEG, PNG, WebP, or PDF</p>
+                  <div className="border-2 border-dashed border-[#1E1E1E] rounded-xl p-8 text-center">
+                    <Upload className="w-12 h-12 text-[#555] mx-auto mb-4" />
+                    <p className="text-[#A1A1AA] mb-2">Upload a receipt image</p>
+                    <p className="text-sm text-[#555]">JPEG, PNG, WebP, or PDF</p>
                     <Input
                       type="file"
                       accept="image/*,.pdf"
@@ -183,7 +183,7 @@ export default function Transactions() {
 
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="bg-[#006400] hover:bg-[#004d00] text-white rounded-xl" data-testid="add-transaction-btn">
+                <Button className="bg-[#00C896] hover:bg-[#00dba6] text-white rounded-xl" data-testid="add-transaction-btn">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Transaction
                 </Button>
@@ -196,7 +196,7 @@ export default function Transactions() {
                   <Tabs value={newTransaction.type} onValueChange={(v) => setNewTransaction({ ...newTransaction, type: v, category: '' })}>
                     <TabsList className="grid w-full grid-cols-2">
                       <TabsTrigger value="income" data-testid="type-income-tab">
-                        <TrendingUp className="w-4 h-4 mr-2 text-[#006400]" />
+                        <TrendingUp className="w-4 h-4 mr-2 text-[#00C896]" />
                         {t('income')}
                       </TabsTrigger>
                       <TabsTrigger value="expense" data-testid="type-expense-tab">
@@ -209,7 +209,7 @@ export default function Transactions() {
                   <div className="space-y-2">
                     <Label>{t('amount')}</Label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">₦</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A1A1AA]">₦</span>
                       <Input
                         type="number"
                         value={newTransaction.amount}
@@ -262,7 +262,7 @@ export default function Transactions() {
                     />
                   </div>
 
-                  <Button type="submit" className="w-full bg-[#006400] hover:bg-[#004d00] text-white rounded-xl" data-testid="submit-transaction-btn">
+                  <Button type="submit" className="w-full bg-[#00C896] hover:bg-[#00dba6] text-white rounded-xl" data-testid="submit-transaction-btn">
                     Add Transaction
                   </Button>
                 </form>
@@ -273,19 +273,19 @@ export default function Transactions() {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Card className="rounded-2xl border-slate-200 bg-[#E8F5E9]">
+          <Card className="card-dark bg-[#00C896]/10">
             <CardContent className="p-6 flex items-center justify-between">
               <div>
-                <p className="text-sm text-[#004d00]">Total Income</p>
-                <p className="text-2xl font-bold text-[#006400]" data-testid="summary-income">{formatCurrency(totalIncome)}</p>
+                <p className="text-sm text-[#00C896]">Total Income</p>
+                <p className="text-2xl font-bold text-[#00C896]" data-testid="summary-income">{formatCurrency(totalIncome)}</p>
               </div>
-              <TrendingUp className="w-10 h-10 text-[#006400]" />
+              <TrendingUp className="w-10 h-10 text-[#00C896]" />
             </CardContent>
           </Card>
-          <Card className="rounded-2xl border-slate-200 bg-red-50">
+          <Card className="card-dark bg-red-500/10">
             <CardContent className="p-6 flex items-center justify-between">
               <div>
-                <p className="text-sm text-red-700">Total Expenses</p>
+                <p className="text-sm text-red-400">Total Expenses</p>
                 <p className="text-2xl font-bold text-red-600" data-testid="summary-expenses">{formatCurrency(totalExpenses)}</p>
               </div>
               <TrendingDown className="w-10 h-10 text-red-500" />
@@ -294,11 +294,11 @@ export default function Transactions() {
         </div>
 
         {/* Filters */}
-        <Card className="rounded-2xl border-slate-200">
+        <Card className="card-dark">
           <CardContent className="p-4">
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#555]" />
                 <Input
                   placeholder="Search transactions..."
                   value={searchQuery}
@@ -323,9 +323,9 @@ export default function Transactions() {
         </Card>
 
         {/* Transactions List */}
-        <Card className="rounded-2xl border-slate-200">
+        <Card className="card-dark">
           <CardHeader>
-            <CardTitle className="text-lg" style={{ fontFamily: 'Outfit' }}>
+            <CardTitle className="text-lg" style={{ fontFamily: 'Clash Display, Satoshi, sans-serif' }}>
               Recent Transactions ({filteredTransactions.length})
             </CardTitle>
           </CardHeader>
@@ -335,7 +335,7 @@ export default function Transactions() {
                 <div className="w-8 h-8 border-4 border-[#006400] border-t-transparent rounded-full animate-spin"></div>
               </div>
             ) : filteredTransactions.length === 0 ? (
-              <div className="text-center py-12 text-slate-400">
+              <div className="text-center py-12 text-[#555]">
                 <p>No transactions found</p>
                 <p className="text-sm mt-1">Add your first transaction to get started</p>
               </div>
@@ -344,24 +344,24 @@ export default function Transactions() {
                 {filteredTransactions.map((tx, idx) => (
                   <div
                     key={tx.id || idx}
-                    className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors"
+                    className="flex items-center justify-between p-4 hover:bg-[#0A0A0A] transition-colors"
                     data-testid={`transaction-item-${idx}`}
                   >
                     <div className="flex items-center gap-4">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                        tx.type === 'income' ? 'bg-[#E8F5E9]' : 'bg-red-50'
+                        tx.type === 'income' ? 'bg-[#00C896]/10' : 'bg-red-500/10'
                       }`}>
                         {tx.type === 'income' ? (
-                          <TrendingUp className="w-5 h-5 text-[#006400]" />
+                          <TrendingUp className="w-5 h-5 text-[#00C896]" />
                         ) : (
                           <TrendingDown className="w-5 h-5 text-red-500" />
                         )}
                       </div>
                       <div>
-                        <p className="font-medium text-[#022c22]">{tx.description}</p>
+                        <p className="font-medium text-white">{tx.description}</p>
                         <div className="flex items-center gap-2 mt-1">
                           <Badge variant="outline" className="text-xs">{tx.category}</Badge>
-                          <span className="text-xs text-slate-400">{formatDate(tx.date)}</span>
+                          <span className="text-xs text-[#555]">{formatDate(tx.date)}</span>
                           {tx.flagged && (
                             <Badge variant="destructive" className="text-xs">
                               <AlertTriangle className="w-3 h-3 mr-1" />
@@ -369,23 +369,23 @@ export default function Transactions() {
                             </Badge>
                           )}
                           {tx.ai_categorized && (
-                            <Badge variant="secondary" className="text-xs bg-[#E8F5E9] text-[#006400]">AI</Badge>
+                            <Badge variant="secondary" className="text-xs bg-[#00C896]/10 text-[#00C896]">AI</Badge>
                           )}
                           {['Rent', 'Utilities', 'Professional Fees', 'Marketing', 'Equipment', 'Subscriptions', 'Transport'].includes(tx.category) && tx.type === 'expense' && (
-                            <Badge className="text-xs bg-[#006400] text-white">Tax Deductible</Badge>
+                            <Badge className="text-xs bg-[#00C896] text-white">Tax Deductible</Badge>
                           )}
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
-                      <span className={`font-bold ${tx.type === 'income' ? 'text-[#006400]' : 'text-red-500'}`}>
+                      <span className={`font-bold ${tx.type === 'income' ? 'text-[#00C896]' : 'text-red-500'}`}>
                         {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
                       </span>
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => handleDeleteTransaction(tx.id)}
-                        className="text-slate-400 hover:text-red-500"
+                        className="text-[#555] hover:text-red-500"
                         data-testid={`delete-transaction-${idx}`}
                       >
                         <Trash2 className="w-4 h-4" />

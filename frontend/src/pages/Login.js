@@ -1,132 +1,77 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { useAuth } from '../context/AuthContext';
-import { useLanguage } from '../context/LanguageContext';
 import { toast } from 'sonner';
-import { Lock, Mail, Eye, EyeOff } from 'lucide-react';
-
-function formatApiErrorDetail(detail) {
-  if (detail == null) return "Something went wrong. Please try again.";
-  if (typeof detail === "string") return detail;
-  if (Array.isArray(detail))
-    return detail.map((e) => (e && typeof e.msg === "string" ? e.msg : JSON.stringify(e))).filter(Boolean).join(" ");
-  if (detail && typeof detail.msg === "string") return detail.msg;
-  return String(detail);
-}
+import { ArrowRight, Lock } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
-  const { t } = useLanguage();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await login(email, password);
-      toast.success('Welcome back!');
-      navigate('/dashboard');
+      const user = await login(email, password);
+      toast.success('Welcome back');
+      navigate(user.onboarding_completed ? '/dashboard' : '/onboarding');
     } catch (error) {
-      toast.error(formatApiErrorDetail(error.response?.data?.detail) || error.message);
-    } finally {
-      setLoading(false);
-    }
+      toast.error(error.response?.data?.detail || 'Invalid credentials');
+    } finally { setLoading(false); }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#E8F5E9] via-[#FAFAFA] to-[#FFF8E1] flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2">
-            <div className="w-12 h-12 bg-[#006400] rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-xl">₦</span>
-            </div>
-            <span className="text-2xl font-bold text-[#022c22]" style={{ fontFamily: 'Outfit' }}>ClearFile NG</span>
-          </Link>
+    <div className="min-h-screen bg-[#050505] flex items-center justify-center p-4">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-8 animate-fade-in">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00C896] to-[#3B82F6] flex items-center justify-center mx-auto mb-4">
+            <span className="text-black font-bold">C</span>
+          </div>
+          <h1 className="text-2xl font-display font-semibold text-white">Welcome back</h1>
+          <p className="text-sm text-[#A1A1AA] mt-1">Sign in to ClearFile NG</p>
         </div>
 
-        <Card className="border-slate-200 shadow-xl rounded-2xl">
-          <CardHeader className="text-center pb-4">
-            <CardTitle className="text-2xl font-bold text-[#022c22]" style={{ fontFamily: 'Outfit' }}>{t('login')}</CardTitle>
-            <CardDescription className="text-slate-600">Enter your credentials to access your account</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-slate-700">{t('email')}</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    className="pl-10 rounded-xl border-slate-200 focus:ring-[#006400]"
-                    required
-                    data-testid="login-email-input"
-                  />
-                </div>
-              </div>
+        <form onSubmit={handleSubmit} className="space-y-4 animate-fade-in stagger-2" data-testid="login-form">
+          <div>
+            <label className="text-xs text-[#A1A1AA] font-medium uppercase tracking-wider mb-1.5 block">Email</label>
+            <input
+              type="email" value={email} onChange={e => setEmail(e.target.value)} required
+              className="w-full bg-[#111111] border border-[#1E1E1E] rounded-xl px-4 py-3 text-white text-sm placeholder-[#333] focus:outline-none focus:border-[#00C896]/50 transition-colors"
+              placeholder="you@company.com"
+              data-testid="login-email"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-[#A1A1AA] font-medium uppercase tracking-wider mb-1.5 block">Password</label>
+            <input
+              type="password" value={password} onChange={e => setPassword(e.target.value)} required
+              className="w-full bg-[#111111] border border-[#1E1E1E] rounded-xl px-4 py-3 text-white text-sm placeholder-[#333] focus:outline-none focus:border-[#00C896]/50 transition-colors"
+              placeholder="Enter password"
+              data-testid="login-password"
+            />
+          </div>
+          <button
+            type="submit" disabled={loading}
+            className="w-full btn-primary py-3 text-sm flex items-center justify-center gap-2"
+            data-testid="login-submit"
+          >
+            {loading ? <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></span> : <>Sign In <ArrowRight className="w-4 h-4" /></>}
+          </button>
+        </form>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-slate-700">{t('password')}</Label>
-                  <Link to="/forgot-password" className="text-sm text-[#006400] hover:underline">
-                    Forgot password?
-                  </Link>
-                </div>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="pl-10 pr-10 rounded-xl border-slate-200 focus:ring-[#006400]"
-                    required
-                    data-testid="login-password-input"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
-              </div>
+        <div className="mt-6 text-center space-y-2 animate-fade-in stagger-3">
+          <Link to="/forgot-password" className="text-xs text-[#A1A1AA] hover:text-[#00C896] transition-colors">Forgot password?</Link>
+          <p className="text-sm text-[#A1A1AA]">
+            No account? <Link to="/register" className="text-[#00C896] hover:underline font-medium">Create one</Link>
+          </p>
+        </div>
 
-              <Button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-[#006400] hover:bg-[#004d00] text-white rounded-xl py-6"
-                data-testid="login-submit-btn"
-              >
-                {loading ? 'Logging in...' : t('login')}
-              </Button>
-            </form>
-
-            <div className="mt-6 text-center">
-              <p className="text-slate-600">
-                {t('noAccount')}{' '}
-                <Link to="/register" className="text-[#006400] font-medium hover:underline" data-testid="goto-register-link">
-                  {t('register')}
-                </Link>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex items-center justify-center gap-1.5 mt-8 text-[10px] text-[#333]">
+          <Lock className="w-3 h-3" /> 256-bit encrypted
+        </div>
       </div>
     </div>
   );
