@@ -1,33 +1,35 @@
-# ClearFile NG - Nigerian Tax & Expense Management App
+# ClearFile NG - AI Financial Infrastructure Platform
 
-## Architecture (v4.0)
-- **Backend**: FastAPI + MongoDB (16 route modules)
-- **Frontend**: React + Shadcn UI + Tailwind + Recharts
-- **AI**: Claude Sonnet 4.5 via emergentintegrations
-- **WhatsApp**: Meta Business API (webhook + NLP)
-- **Email**: Resend (live)
+## Design System v5.0 (Premium Dark SaaS)
+- **Background**: #050505 (primary), #0A0A0A (secondary), #111111 (cards)
+- **Border**: #1E1E1E (1px always)
+- **Accent**: #00C896 (primary), #3B82F6 (secondary), #8B5CF6 (tertiary)
+- **Glow**: linear-gradient(90deg, #00C896, #3B82F6, #8B5CF6)
+- **Typography**: Clash Display/Satoshi (headings), Inter (body)
+- **Inspiration**: Resend, Stripe, Linear, Vercel
 
-## What's Implemented
+## Architecture
+- Backend: FastAPI + MongoDB (17 route modules)
+- Frontend: React + Shadcn UI + Tailwind + Recharts
+- AI: Claude Sonnet 4.5
+- WhatsApp: Meta Business API
+- Email: Resend (domain verified: clearfileng.com)
 
-### Core
-- [x] Auth (JWT cookies), 4 user types (Freelancer/SME/Company/Salary Earner)
-- [x] Dashboard with Tax Health Score, Smart Insights, Recurring Expenses, TCC mini card
-- [x] Transactions with "Tax Deductible" badges, AI categorization
-- [x] Tax Calculator with filing CTA modal (3 options)
-- [x] State vs Federal Tax Routing (11 Nigerian states)
-- [x] TCC Tracker with progress bar, Fix Now buttons, PDF letter generation
-- [x] Tax Planner (What-If Simulator) with pie chart + Set Aside
-- [x] AI Chat Assistant, Receipt OCR, CSV/JSON/PDF export
-- [x] WhatsApp Bot (NLP, subscription gate, transaction memory, proactive tagging)
-- [x] Pidgin/English toggle, browser notifications, team access
-- [x] Subscription: Starter (N2K) and Pro (N4K) plans
+## All Features (Tested)
+- [x] Auth, 4 user types, State selection
+- [x] Dashboard: AI Financial Command Center
+- [x] Transactions with Tax Deductible badges
+- [x] Tax Engine with filing modal (AI Guide / Expert / Accountant)
+- [x] State vs Federal Tax Routing
+- [x] TCC Tracker with Fix Now + PDF generation
+- [x] Tax Planner with pie chart + Set Aside
+- [x] AI Chat Assistant, Receipt OCR, PDF/CSV export
+- [x] WhatsApp Bot (NLP, subscription gate, memory, proactive tagging)
+- [x] Expert Matching + Admin Panel
+- [x] Email notifications on expert match (Resend live)
+- [x] AI Tax Guide (6-step FIRS walkthrough)
+- [x] Pidgin/English toggle, Browser notifications
+- [x] Premium Dark SaaS redesign (Stripe/Linear aesthetic)
 
-### New (v4.0)
-- [x] **AI Tax Guide** — 6-step FIRS filing walkthrough with user's real data + AI advice per step
-- [x] **Expert Matching** — Form to hire verified Pan-African tax professional (service type, urgency, budget)
-- [x] Filing modal flow: Tax Calculator → AI Guide / Hire Expert / Send to Accountant
-
-## Testing: iteration_5 — 100% (11/11 backend, 100% frontend)
-
-## Credentials
-- Admin: admin@clearfileng.com / ClearFileNG2024!
+## Testing: iteration_7 — 100% (15/15 backend, 100% frontend)
+## Credentials: admin@clearfileng.com / ClearFileNG2024!
