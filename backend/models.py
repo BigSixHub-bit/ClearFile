@@ -89,7 +89,7 @@ class PasswordResetConfirm(BaseModel):
 
 class PaymentInitRequest(BaseModel):
     plan: str
-    callback_url: str
+    callback_url: Optional[str] = None
 
 
 class MonoLinkRequest(BaseModel):

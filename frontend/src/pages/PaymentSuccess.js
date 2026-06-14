@@ -129,7 +129,7 @@ export default function PaymentSuccess() {
                   Dashboard
                 </Button>
                 <Button
-                  onClick={() => navigate('/ai-tax-guide')}
+                  onClick={() => navigate(txRef?.startsWith('cfng_sub_') ? '/settings' : '/ai-tax-guide')}
                   className="flex-1 bg-[#00C896] hover:bg-[#00dba6] text-white rounded-xl py-3"
                   data-testid="payment-retry-btn"
                 >

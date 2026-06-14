@@ -265,7 +265,7 @@ export default function Settings() {
                 <div
                   key={plan.id}
                   className={`p-6 rounded-2xl border-2 transition-all ${
-                    user?.subscription_plan === plan.id || (user?.subscription_plan === 'growth' && plan.id === 'pro') || (user?.subscription_plan === 'business' && plan.id === 'pro')
+                    user?.subscription_plan === plan.id || (user?.subscription_plan === 'growth' && plan.id === 'pro')
                       ? 'border-[#006400] bg-[#00C896]/10'
                       : plan.popular
                       ? 'border-[#006400]  shadow-[#006400]/10'
@@ -279,7 +279,7 @@ export default function Settings() {
                       {plan.popular && (
                         <Badge className="bg-[#F59E0B] text-white font-bold">Most Popular</Badge>
                       )}
-                      {(user?.subscription_plan === plan.id || (user?.subscription_plan === 'growth' && plan.id === 'pro') || (user?.subscription_plan === 'business' && plan.id === 'pro')) && (
+                      {(user?.subscription_plan === plan.id || (user?.subscription_plan === 'growth' && plan.id === 'pro')) && (
                         <Badge className="bg-[#00C896] text-white">Current</Badge>
                       )}
                     </div>
@@ -296,7 +296,7 @@ export default function Settings() {
                       </li>
                     ))}
                   </ul>
-                  {!(user?.subscription_plan === plan.id || (user?.subscription_plan === 'growth' && plan.id === 'pro') || (user?.subscription_plan === 'business' && plan.id === 'pro')) && (
+                  {!(user?.subscription_plan === plan.id || (user?.subscription_plan === 'growth' && plan.id === 'pro')) && (
                     <Button
                       onClick={() => handleUpgradePlan(plan.id === 'pro' ? 'growth' : plan.id)}
                       disabled={loading}

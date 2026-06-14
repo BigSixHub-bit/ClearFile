@@ -76,7 +76,7 @@ async def initialize_payment(data: PaymentInitRequest, user: dict = Depends(get_
         msg = str(e)
         if "authentication failed" in msg.lower() or "credentials" in msg.lower():
             logger.error(f"Flutterwave auth error: {e}")
-            raise HTTPException(status_code=502, detail="Payment gateway authentication failed. Contact admin to verify Flutterwave API credentials.")
+            raise HTTPException(status_code=424, detail="Payment gateway authentication failed. Contact admin to verify Flutterwave API credentials.")
         logger.error(f"Flutterwave subscription error: {e}")
         raise HTTPException(status_code=500, detail="Payment service unavailable")
 
@@ -132,7 +132,7 @@ async def flutterwave_webhook(request: Request):
     secret_hash = FLW_WEBHOOK_SECRET
     signature = request.headers.get("verif-hash", "")
 
-    if secret_hash and signature != secret_hash:
+    if secret_hash and not hmac.compare_digest(signature, secret_hash):
         raise HTTPException(status_code=401, detail="Invalid webhook signature")
 
     event = await request.json()

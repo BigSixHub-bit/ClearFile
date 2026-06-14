@@ -75,7 +75,7 @@ async def initialize_ai_guide_payment(request: Request, user: dict = Depends(get
         msg = str(e)
         if "authentication failed" in msg.lower() or "credentials" in msg.lower():
             logger.error(f"Flutterwave auth error: {e}")
-            raise HTTPException(status_code=502, detail="Payment gateway authentication failed. Contact admin to verify Flutterwave API credentials.")
+            raise HTTPException(status_code=424, detail="Payment gateway authentication failed. Contact admin to verify Flutterwave API credentials.")
         logger.error(f"Flutterwave AI guide error: {e}")
         raise HTTPException(status_code=500, detail="Payment service unavailable")
 
