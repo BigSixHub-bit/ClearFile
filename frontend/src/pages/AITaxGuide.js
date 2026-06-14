@@ -39,17 +39,44 @@ export default function AITaxGuide() {
 
   const checkAccess = async () => {
     try {
+      // Handle Flutterwave redirect callback
+      const params = new URLSearchParams(window.location.search);
+      const status = params.get('status');
+      const transactionId = params.get('transaction_id');
+      const txRef = params.get('tx_ref');
+
+      if (status === 'successful' && transactionId) {
+        try {
+          const { data: verifyData } = await axios.get(
+            `${API}/api/payments/ai-guide/verify?transaction_id=${transactionId}&tx_ref=${txRef}`,
+            { withCredentials: true }
+          );
+          if (verifyData.status === 'success' || verifyData.unlocked) {
+            setUnlocked(true);
+            toast.success('AI Guide unlocked successfully!');
+            window.history.replaceState({}, '', '/ai-tax-guide');
+            setCheckingAccess(false);
+            return;
+          }
+        } catch (err) {
+          toast.error('Payment verification failed');
+        }
+        window.history.replaceState({}, '', '/ai-tax-guide');
+      }
+
       const { data } = await axios.get(`${API}/api/payments/ai-guide/status`, { withCredentials: true });
       setUnlocked(data.unlocked);
-      if (data.unlocked) setCheckingAccess(false);
-      else setCheckingAccess(false);
-    } catch (e) { setCheckingAccess(false); }
+    } catch (e) {
+      // silent
+    } finally {
+      setCheckingAccess(false);
+    }
   };
 
   const handleUnlock = async () => {
     try {
       const { data } = await axios.post(`${API}/api/payments/ai-guide/initialize`, {
-        callback_url: `${window.location.origin}/ai-tax-guide?unlocked=true`
+        callback_url: `${window.location.origin}/payment-success`
       }, { withCredentials: true });
 
       if (data.already_unlocked || data.unlocked || data.mock) {
@@ -57,8 +84,8 @@ export default function AITaxGuide() {
         toast.success('AI Guide unlocked!');
         return;
       }
-      if (data.authorization_url) {
-        window.location.href = data.authorization_url;
+      if (data.payment_link) {
+        window.location.href = data.payment_link;
       }
     } catch (e) {
       toast.error('Payment failed. Try again.');

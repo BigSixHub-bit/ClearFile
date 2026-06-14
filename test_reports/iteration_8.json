@@ -1,0 +1,101 @@
+{
+  "summary": "Flutterwave V4 payment integration tested end-to-end. Backend: 11/11 pytest passed across plans, AI Guide payments (initialize/verify/status for admin & new user), subscription payments (initialize/verify), and webhook signature validation. Frontend: PaymentSuccess page renders all 3 states (verifying, cancelled, no-params) correctly with all required data-testid attributes; nav buttons (continue/back/retry) navigate correctly. AI Tax Guide page loads with full step-by-step content for admin (already unlocked). Settings page shows subscription plans.",
+
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/subscription/initialize",
+        "issue": "PaymentInitRequest.callback_url is required (returns 422). Route code uses `data.callback_url or f\"{FRONTEND_URL}/payment-success\"` suggesting it should be Optional[str] = None for graceful default.",
+        "priority": "LOW"
+      },
+      {
+        "endpoint": "POST /api/payments/ai-guide/initialize (new user)",
+        "issue": "Backend correctly raises HTTPException(502) when Flutterwave OAuth2 returns 401, but the Kubernetes/Cloudflare ingress strips the JSON {detail:'Payment gateway authentication failed...'} response and replaces it with a Cloudflare 502 HTML page. Frontend axios still gets status 502 but loses the structured error message. This is an infra/proxy issue, not a backend bug — main agent may want to convert the 502 to a 200 with {error: 'gateway_unavailable'} body, or use a 4xx status that the proxy passes through (e.g., 400/424).",
+        "priority": "MEDIUM"
+      }
+    ]
+  },
+
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Settings (Subscription Plan section)",
+        "issue": "Admin user shows 'Current plan: Business' label AND the Pro card has a 'Current' badge — inconsistent. Admin profile chip says 'Company' but plan label says 'Business'. The Pro plan should not be highlighted as 'Current' when the actual current plan is 'Business'.",
+        "selector": "Subscription Plan card",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+
+  "passed_tests": {
+    "backend": [
+      "GET /api/subscription/plans returns 2 plans + flutterwave_configured=true",
+      "GET /api/payments/ai-guide/status (admin) -> unlocked:true",
+      "POST /api/payments/ai-guide/initialize (admin) -> already_unlocked:true",
+      "GET /api/payments/ai-guide/status (new user) -> unlocked:false",
+      "POST /api/payments/ai-guide/initialize (new user) -> 502 (FLW creds invalid, expected)",
+      "GET /api/payments/ai-guide/verify -> 400 (transaction_id required when configured)",
+      "POST /api/subscription/initialize (starter) -> 502 (FLW creds invalid, expected)",
+      "POST /api/subscription/initialize (invalid_plan) -> 422 validation error",
+      "GET /api/subscription/verify -> 400 (transaction_id required when configured)",
+      "POST /api/subscription/webhook with wrong signature -> 401",
+      "POST /api/subscription/webhook with correct verif-hash & charge.completed -> 200 {status:'ok'}"
+    ],
+    "frontend": [
+      "/payment-success?status=cancelled shows 'Payment was cancelled.' with payment-failed testid",
+      "/payment-success with no params shows 'No transaction information found.'",
+      "/payment-success?transaction_id=...&tx_ref=cfng_aiguide_... shows verifying spinner (payment-verifying testid)",
+      "payment-retry-btn click navigates to /ai-tax-guide",
+      "payment-back-btn click navigates to /dashboard",
+      "All data-testid attributes present: payment-result-card, payment-success, payment-failed, payment-verifying, payment-continue-btn, payment-back-btn, payment-retry-btn",
+      "/ai-tax-guide loads with full step-by-step FIRS walkthrough (6 steps) for unlocked admin",
+      "/settings loads with both subscription plans (Starter ₦2,000, Pro ₦4,000) and Get Started CTA"
+    ]
+  },
+
+  "test_report_links": [
+    "/app/backend/tests/test_flutterwave_payments.py",
+    "/app/test_reports/pytest/iteration8_results.xml"
+  ],
+
+  "action_items": [
+    "Make PaymentInitRequest.callback_url Optional[str] = None to align with route's default fallback behaviour",
+    "Consider converting the 502 from Flutterwave auth failure to a different status that the Cloudflare ingress will pass through with the JSON body (e.g., 400 with error_code='gateway_auth_failed'), so frontend can surface a meaningful error to users instead of generic 'Payment verification failed' axios catch",
+    "Fix Settings page subscription card: admin user with 'Business' plan should not have 'Pro' card highlighted as 'Current'. Either show no current marker for Business users or add a separate 'Business' tier marker",
+    "Live Flutterwave V4 OAuth2 credentials in .env return 401 — main agent should verify FLW_CLIENT_ID / FLW_CLIENT_SECRET (Production env) with Flutterwave to enable real payment flow"
+  ],
+
+  "critical_code_review_comments": [
+    "Webhook signature comparison uses plain == on verif-hash header — should use hmac.compare_digest for timing-safe comparison",
+    "FlutterwaveTokenManager has no concurrency lock around refresh_token — two concurrent requests can both trigger token refresh. Minor (idempotent) but worth adding asyncio.Lock for production",
+    "ai_guide_unlocks collection does not enforce a unique index on (user_id, status='active') — concurrent initialize calls could create duplicate active unlocks (mock mode insert). Add unique partial index",
+    "PaymentSuccess.js: verifyPayment runs only once on mount; if the user reloads after navigating away, state is lost. Consider persisting verification state or using a separate /api/payments/status endpoint to refetch",
+    "PaymentSuccess.js retry button always navigates to /ai-tax-guide even for subscription payment failures — should route based on tx_ref prefix"
+  ],
+
+  "updated_files": [
+    "/app/backend/tests/test_flutterwave_payments.py (new)"
+  ],
+
+  "success_rate": {
+    "backend": "100% (11/11 pytest)",
+    "frontend": "100% (8/8 UI assertions)"
+  },
+
+  "test_credentials": {
+    "admin": {"email": "admin@clearfileng.com", "password": "ClearFileNG2024!"},
+    "new_test_user_pattern": "TEST_flw_<random>@test.com / Test1234!"
+  },
+
+  "seed_data_creation": "Created ephemeral TEST_flw_<uuid>@test.com users during pytest runs for new-user payment scenarios. Each test creates a fresh user; no manual cleanup required (users have no active subscription / unlock data).",
+
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+
+  "context_for_next_testing_agent": "Flutterwave V4 integration is functionally correct. Live OAuth2 creds return 401 from idp.flutterwave.com — backend correctly raises HTTPException(502) but Cloudflare ingress replaces the JSON body with its own 502 HTML page. Status code is preserved so frontend error handling works (axios catch). Admin user has AI guide already unlocked from prior mock session. All 7 required PaymentSuccess data-testid attributes are present and verified. Webhook accepts verif-hash='clearfileng_flw_webhook_2024' and processes charge.completed events.",
+
+  "rca_of_the_issue": "N/A — no production bugs found. The two minor items (502 HTML hijack by Cloudflare, callback_url Pydantic required) are deployment/schema polish issues, not functional bugs."
+}

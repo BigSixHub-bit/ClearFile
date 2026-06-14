@@ -171,61 +171,29 @@ export default function Settings() {
     
     setLoading(true);
     try {
-      // Initialize Paystack payment
-      const callbackUrl = `${window.location.origin}/settings?payment=success&plan=${plan}`;
+      const callbackUrl = `${window.location.origin}/payment-success`;
       const { data } = await axios.post(`${API}/api/subscription/initialize`, {
         plan,
         callback_url: callbackUrl
       }, { withCredentials: true });
       
-      if (data.authorization_url) {
-        // Redirect to Paystack
-        window.location.href = data.authorization_url;
-      } else {
-        // Fallback: direct upgrade (for demo/test mode)
-        await axios.put(`${API}/api/user/subscription`, { plan }, { withCredentials: true });
+      if (data.payment_link) {
+        window.location.href = data.payment_link;
+      } else if (data.mock || data.upgraded) {
         toast.success(`Upgraded to ${plan} plan!`);
         window.location.reload();
       }
     } catch (error) {
-      // If Paystack not configured, do direct upgrade
-      if (error.response?.status === 500) {
-        try {
-          await axios.put(`${API}/api/user/subscription`, { plan }, { withCredentials: true });
-          toast.success(`Upgraded to ${plan} plan!`);
-          window.location.reload();
-        } catch (e) {
-          toast.error('Failed to upgrade plan');
-        }
-      } else {
-        toast.error(error.response?.data?.detail || 'Failed to initiate payment');
-      }
+      toast.error(error.response?.data?.detail || 'Failed to initiate payment');
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle payment callback
+  // Handle bank link callback
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const payment = params.get('payment');
-    const reference = params.get('reference') || params.get('trxref');
-    const plan = params.get('plan');
-    
-    if (payment === 'success' && reference) {
-      // Verify payment
-      axios.get(`${API}/api/subscription/verify/${reference}`, { withCredentials: true })
-        .then(({ data }) => {
-          if (data.status === 'success') {
-            toast.success(`Successfully upgraded to ${data.plan} plan!`);
-            window.history.replaceState({}, '', '/settings');
-            window.location.reload();
-          }
-        })
-        .catch(() => {
-          toast.error('Payment verification failed');
-        });
-    } else if (params.get('bank_linked') === 'true') {
+    if (params.get('bank_linked') === 'true') {
       toast.success('Bank account linked successfully!');
       window.history.replaceState({}, '', '/settings');
       fetchBankAccounts();

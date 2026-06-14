@@ -1,111 +1,110 @@
-"""AI Guide Payment + Invoice & Ledger system for MSME guardrails"""
+"""AI Guide Payment (Flutterwave) + Invoice & Ledger system"""
 import uuid
 import logging
-import httpx
+import hmac
+import hashlib
+import os
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends, Request
 from bson import ObjectId
 
 from database import db
-from config import PAYSTACK_SECRET_KEY, PAYSTACK_PUBLIC_KEY
 from utils.auth import get_current_user
+from utils.flutterwave import flw_request, is_flutterwave_configured
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-AI_GUIDE_PRICE_KOBO = 7000000  # ₦70,000 in kobo
+AI_GUIDE_PRICE = 70000  # ₦70,000
+FRONTEND_URL = os.environ.get("FRONTEND_URL")
+FLW_WEBHOOK_SECRET = os.environ.get("FLW_WEBHOOK_SECRET_HASH", "")
 
 
 # ========================
-# AI GUIDE PAYMENT
+# AI GUIDE PAYMENT (Flutterwave V4)
 # ========================
 
 @router.post("/payments/ai-guide/initialize")
 async def initialize_ai_guide_payment(request: Request, user: dict = Depends(get_current_user)):
-    """Initialize Paystack payment for AI Guide unlock (₦70,000)."""
+    """Initialize Flutterwave payment for AI Guide unlock (₦70,000)."""
     data = await request.json()
-    callback_url = data.get("callback_url", "")
-    reference = f"cfng_aiguide_{uuid.uuid4().hex[:16]}"
+    callback_url = data.get("callback_url", f"{FRONTEND_URL}/payment-success")
+    tx_ref = f"cfng_aiguide_{uuid.uuid4().hex[:16]}"
 
-    # Check if already unlocked
     existing = await db.ai_guide_unlocks.find_one({"user_id": user["id"], "status": "active"})
     if existing:
         return {"already_unlocked": True, "message": "AI Guide already unlocked"}
 
-    if not PAYSTACK_SECRET_KEY:
-        # Mock mode — auto-unlock for demo
+    if not is_flutterwave_configured():
         await db.ai_guide_unlocks.insert_one({
-            "user_id": user["id"],
-            "reference": reference,
-            "amount": AI_GUIDE_PRICE_KOBO,
-            "status": "active",
-            "mode": "mock",
+            "user_id": user["id"], "reference": tx_ref,
+            "amount": AI_GUIDE_PRICE, "status": "active", "mode": "mock",
             "created_at": datetime.now(timezone.utc).isoformat()
         })
         return {"mock": True, "unlocked": True, "message": "AI Guide unlocked (demo mode)"}
 
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://api.paystack.co/transaction/initialize",
-                headers={"Authorization": f"Bearer {PAYSTACK_SECRET_KEY}", "Content-Type": "application/json"},
-                json={
-                    "email": user["email"],
-                    "amount": AI_GUIDE_PRICE_KOBO,
-                    "reference": reference,
-                    "callback_url": callback_url,
-                    "metadata": {"user_id": user["id"], "product": "ai_guide"}
-                },
-                timeout=30.0
-            )
-            result = response.json()
+        fw_payload = {
+            "tx_ref": tx_ref,
+            "amount": AI_GUIDE_PRICE,
+            "currency": "NGN",
+            "redirect_url": callback_url,
+            "payment_options": "card,banktransfer,ussd",
+            "customer": {"email": user["email"], "name": user.get("name", "")},
+            "customizations": {"title": "ClearFile NG", "description": "AI Tax Filing Guide - One-time Unlock"},
+            "meta": {"user_id": user["id"], "product": "ai_guide"}
+        }
 
-        if result.get("status"):
+        response = await flw_request("POST", "/v3/payments", json=fw_payload)
+        result = response.json()
+
+        if response.status_code < 400 and result.get("data", {}).get("link"):
             await db.ai_guide_unlocks.insert_one({
-                "user_id": user["id"],
-                "reference": reference,
-                "amount": AI_GUIDE_PRICE_KOBO,
-                "status": "pending",
+                "user_id": user["id"], "reference": tx_ref,
+                "amount": AI_GUIDE_PRICE, "status": "pending",
                 "created_at": datetime.now(timezone.utc).isoformat()
             })
-            return {
-                "authorization_url": result["data"]["authorization_url"],
-                "reference": result["data"]["reference"],
-                "access_code": result["data"]["access_code"]
-            }
+            return {"payment_link": result["data"]["link"], "tx_ref": tx_ref}
 
+        logger.error(f"Flutterwave init response: {result}")
         raise HTTPException(status_code=400, detail=result.get("message", "Payment init failed"))
-    except httpx.HTTPError as e:
-        logger.error(f"Paystack AI guide error: {e}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        msg = str(e)
+        if "authentication failed" in msg.lower() or "credentials" in msg.lower():
+            logger.error(f"Flutterwave auth error: {e}")
+            raise HTTPException(status_code=502, detail="Payment gateway authentication failed. Contact admin to verify Flutterwave API credentials.")
+        logger.error(f"Flutterwave AI guide error: {e}")
         raise HTTPException(status_code=500, detail="Payment service unavailable")
 
 
-@router.get("/payments/ai-guide/verify/{reference}")
-async def verify_ai_guide_payment(reference: str, user: dict = Depends(get_current_user)):
-    """Verify AI Guide payment."""
-    if not PAYSTACK_SECRET_KEY:
+@router.get("/payments/ai-guide/verify")
+async def verify_ai_guide_payment(transaction_id: str = None, tx_ref: str = None, user: dict = Depends(get_current_user)):
+    """Verify AI Guide payment via Flutterwave."""
+    if not is_flutterwave_configured():
         return {"status": "success", "unlocked": True, "mode": "mock"}
 
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"https://api.paystack.co/transaction/verify/{reference}",
-                headers={"Authorization": f"Bearer {PAYSTACK_SECRET_KEY}"},
-                timeout=30.0
-            )
-            result = response.json()
+    if not transaction_id:
+        raise HTTPException(status_code=400, detail="transaction_id required")
 
-        if result.get("status") and result["data"]["status"] == "success":
+    try:
+        response = await flw_request("GET", f"/v3/transactions/{transaction_id}/verify")
+        result = response.json()
+        data = result.get("data", {})
+
+        if data.get("status") == "successful" and data.get("amount", 0) >= AI_GUIDE_PRICE and data.get("currency") == "NGN":
+            ref = data.get("tx_ref", tx_ref)
             await db.ai_guide_unlocks.update_one(
-                {"reference": reference},
-                {"$set": {"status": "active", "verified_at": datetime.now(timezone.utc).isoformat()}}
+                {"reference": ref},
+                {"$set": {"status": "active", "transaction_id": transaction_id, "verified_at": datetime.now(timezone.utc).isoformat()}}
             )
             return {"status": "success", "unlocked": True}
 
-        return {"status": "failed", "message": result.get("message", "Verification failed")}
-    except httpx.HTTPError as e:
-        logger.error(f"Paystack verify error: {e}")
+        return {"status": "failed", "message": "Payment verification failed"}
+    except Exception as e:
+        logger.error(f"Flutterwave verify error: {e}")
         raise HTTPException(status_code=500, detail="Verification failed")
 
 
