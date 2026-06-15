@@ -19,6 +19,7 @@ import TaxPlanner from './pages/TaxPlanner';
 import TaxObligations from './pages/TaxObligations';
 import AITaxGuide from './pages/AITaxGuide';
 import PaymentSuccess from './pages/PaymentSuccess';
+import Invoices from './pages/Invoices';
 import HireExpert from './pages/HireExpert';
 import AdminPanel from './pages/AdminPanel';
 import VerifyEmail from './pages/VerifyEmail';
@@ -90,6 +91,7 @@ function AppRoutes() {
       <Route path="/tax-planner" element={<ProtectedRoute><TaxPlanner /></ProtectedRoute>} />
       <Route path="/tax-obligations" element={<ProtectedRoute><TaxObligations /></ProtectedRoute>} />
       <Route path="/ai-tax-guide" element={<ProtectedRoute><AITaxGuide /></ProtectedRoute>} />
+      <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
       <Route path="/payment-success" element={<ProtectedRoute><PaymentSuccess /></ProtectedRoute>} />
       <Route path="/hire-expert" element={<ProtectedRoute><HireExpert /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />

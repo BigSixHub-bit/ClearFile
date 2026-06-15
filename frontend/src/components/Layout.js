@@ -64,6 +64,7 @@ export default function Layout({ children }) {
   const navItems = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Command Center' },
     { to: '/transactions', icon: Receipt, label: 'Transactions' },
+    { to: '/invoices', icon: FileText, label: 'Invoices' },
     { to: '/tax-calculator', icon: Calculator, label: 'Tax Engine' },
     { to: '/tax-obligations', icon: Landmark, label: 'Tax Routing' },
     { to: '/tax-planner', icon: TrendingUp, label: 'Tax Planner' },
@@ -220,7 +221,7 @@ export default function Layout({ children }) {
       {/* Mobile Bottom Nav */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 mobile-nav border-t border-[#1E1E1E] z-50">
         <div className="flex justify-around py-2">
-          {[navItems[0], navItems[1], navItems[2], navItems[5], navItems[7]].map(item => (
+          {[navItems[0], navItems[1], navItems[2], navItems[3], navItems[8]].map(item => (
             <NavLink
               key={item.to}
               to={item.to}

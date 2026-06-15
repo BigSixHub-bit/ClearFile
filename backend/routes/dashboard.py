@@ -24,8 +24,15 @@ async def get_dashboard(user: dict = Depends(get_current_user)):
     total_expenses = sum(tx["amount"] for tx in transactions if tx["type"] == "expense")
     net_income = total_income - total_expenses
 
-    bank_accounts = await db.bank_accounts.find({"user_id": user_id}, {"_id": 0, "balance": 1}).to_list(10)
+    bank_accounts = await db.bank_accounts.find({"user_id": user_id}, {"_id": 0, "balance": 1, "linked": 1}).to_list(10)
+    has_linked_bank = any(acc.get("linked") for acc in bank_accounts)
     total_bank_balance = sum(acc.get("balance", 0) for acc in bank_accounts)
+    if total_bank_balance == 0:
+        non_draw_income = sum(tx["amount"] for tx in transactions if tx["type"] == "income")
+        non_draw_expense = sum(tx["amount"] for tx in transactions if tx["type"] == "expense" and tx.get("category") != "Owner's Draw")
+        computed_balance = non_draw_income - non_draw_expense
+    else:
+        computed_balance = total_bank_balance
 
     business_type = user.get("business_type", "freelancer")
     deductible_expenses = total_expenses * 0.7
@@ -60,7 +67,8 @@ async def get_dashboard(user: dict = Depends(get_current_user)):
         "total_income": total_income,
         "total_expenses": total_expenses,
         "net_income": net_income,
-        "total_bank_balance": total_bank_balance,
+        "total_bank_balance": computed_balance,
+        "has_linked_bank": has_linked_bank,
         "estimated_tax": estimated_tax,
         "vat_owed": vat_owed,
         "tax_health_score": tax_health_score,

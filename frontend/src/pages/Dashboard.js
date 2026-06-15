@@ -105,7 +105,7 @@ export default function Dashboard() {
             { label: 'Total Revenue', value: dashboard?.total_income || 0, icon: TrendingUp, color: '#00C896', change: '+12.5%' },
             { label: 'Total Expenses', value: dashboard?.total_expenses || 0, icon: TrendingDown, color: '#EF4444', change: '-3.2%' },
             { label: 'Estimated Tax', value: dashboard?.estimated_tax || 0, icon: Activity, color: '#F59E0B', change: null },
-            { label: 'Bank Balance', value: dashboard?.total_bank_balance || 0, icon: Wallet, color: '#3B82F6', change: null },
+            { label: 'Bank Balance', value: dashboard?.total_bank_balance || 0, icon: Wallet, color: '#3B82F6', change: null, showLinkPrompt: !dashboard?.has_linked_bank && (dashboard?.total_bank_balance || 0) > 0 },
           ].map((stat, idx) => (
             <div key={idx} className={`card-dark p-5 hover-lift animate-fade-in stagger-${idx + 1}`} data-testid={`stat-card-${idx}`}>
               <div className="flex items-center justify-between mb-3">
@@ -115,6 +115,9 @@ export default function Dashboard() {
               <p className="text-2xl font-semibold text-white tabular-nums" data-testid={`stat-value-${idx}`}>
                 {fmt(stat.value)}
               </p>
+              {stat.showLinkPrompt && (
+                <p className="text-xs mt-1 text-[#3B82F6]">Computed from transactions</p>
+              )}
               {stat.change && (
                 <p className={`text-xs mt-1.5 ${stat.change.startsWith('+') ? 'text-[#00C896]' : 'text-[#EF4444]'}`}>
                   {stat.change} from last month

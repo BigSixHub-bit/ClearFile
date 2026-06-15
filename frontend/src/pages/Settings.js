@@ -14,7 +14,8 @@ import { useLanguage } from '../context/LanguageContext';
 import { toast } from 'sonner';
 import { 
   User, Bell, Moon, Languages, Shield, CreditCard, 
-  Link2, Unlink, Building, Check, Crown, FileDown, Users
+  Link2, Unlink, Building, Check, Crown, FileDown, Users,
+  Brain, Trash2, Edit2, Lock, MessageSquare
 } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -24,6 +25,8 @@ export default function Settings() {
   const { language, toggleLanguage, t } = useLanguage();
   const [bankAccounts, setBankAccounts] = useState([]);
   const [supportedBanks, setSupportedBanks] = useState([]);
+  const [memories, setMemories] = useState([]);
+  const [waSettings, setWaSettings] = useState({ transaction_notifications: true, weekly_summary: true, tax_reminders: true, phone: null });
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
   const [newBankAccount, setNewBankAccount] = useState({
     bank_name: '',
@@ -39,6 +42,8 @@ export default function Settings() {
   useEffect(() => {
     fetchBankAccounts();
     fetchSupportedBanks();
+    fetchMemories();
+    fetchWaSettings();
     if (user?.subscription_plan === 'business') {
       fetchTeamMembers();
     }
@@ -60,6 +65,36 @@ export default function Settings() {
     } catch (error) {
       console.error('Failed to load banks');
     }
+  };
+
+  const fetchMemories = async () => {
+    try {
+      const { data } = await axios.get(`${API}/api/transaction-memory`, { withCredentials: true });
+      setMemories(data);
+    } catch (e) {}
+  };
+
+  const fetchWaSettings = async () => {
+    try {
+      const { data } = await axios.get(`${API}/api/whatsapp/settings`, { withCredentials: true });
+      setWaSettings(data);
+    } catch (e) {}
+  };
+
+  const handleDeleteMemory = async (memId) => {
+    try {
+      await axios.delete(`${API}/api/transaction-memory/${memId}`, { withCredentials: true });
+      toast.success('Memory cleared');
+      fetchMemories();
+    } catch (e) { toast.error('Failed to delete'); }
+  };
+
+  const handleToggleWaSetting = async (key) => {
+    const updated = { ...waSettings, [key]: !waSettings[key] };
+    setWaSettings(updated);
+    try {
+      await axios.put(`${API}/api/whatsapp/settings`, { [key]: updated[key] }, { withCredentials: true });
+    } catch (e) { toast.error('Failed to update setting'); }
   };
 
   const fetchTeamMembers = async () => {
@@ -467,6 +502,103 @@ export default function Settings() {
                 )}
               </>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Smart Memory */}
+        <Card className="card-dark" data-testid="smart-memory-section">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2" style={{ fontFamily: 'Clash Display, Satoshi, sans-serif' }}>
+              <Brain className="w-5 h-5 text-[#8B5CF6]" />
+              Smart Memory
+            </CardTitle>
+            <CardDescription>Auto-categorization rules learned from your transactions</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {memories.length === 0 ? (
+              <div className="text-center py-6 text-[#555]">
+                <Brain className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                <p className="text-sm">No learned patterns yet. Add transactions to build memory.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {memories.map((mem, idx) => (
+                  <div key={mem.id || idx} className="flex items-center justify-between p-4 bg-[#0A0A0A] rounded-xl" data-testid={`memory-item-${idx}`}>
+                    <div className="flex-1">
+                      <p className="font-medium text-white">{mem.counterparty_name || mem.counterparty_account}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className="text-xs">{mem.category}</Badge>
+                        <Badge className={`text-xs ${mem.lock_status === 'hard' ? 'bg-[#00C896] text-white' : 'bg-[#F59E0B]/20 text-[#F59E0B]'}`}>
+                          {mem.lock_status === 'hard' ? 'Hard Lock' : 'Soft Lock'}
+                        </Badge>
+                        <span className="text-xs text-[#555]">{mem.occurrence_count} transactions</span>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteMemory(mem.id)}
+                      className="text-[#555] hover:text-red-500"
+                      data-testid={`delete-memory-${idx}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* WhatsApp AI */}
+        <Card className="card-dark" data-testid="whatsapp-settings-section">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2" style={{ fontFamily: 'Clash Display, Satoshi, sans-serif' }}>
+              <MessageSquare className="w-5 h-5 text-[#25D366]" />
+              WhatsApp AI
+            </CardTitle>
+            <CardDescription>Manage your WhatsApp bookkeeping assistant</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-[#0A0A0A] rounded-xl">
+              <div>
+                <p className="font-medium text-white">Connected Number</p>
+                <p className="text-sm text-[#A1A1AA]">{waSettings.phone || 'Not connected'}</p>
+              </div>
+              {!waSettings.phone && (
+                <Badge className="bg-[#25D366]/10 text-[#25D366] text-xs">Message the ClearFile bot to activate</Badge>
+              )}
+            </div>
+            <div className="flex items-center justify-between p-4 bg-[#0A0A0A] rounded-xl">
+              <div className="flex items-center gap-3">
+                <Bell className="w-5 h-5 text-[#A1A1AA]" />
+                <div>
+                  <p className="font-medium text-white">Transaction Notifications</p>
+                  <p className="text-sm text-[#A1A1AA]">Get a WhatsApp ping for every transaction</p>
+                </div>
+              </div>
+              <Switch checked={waSettings.transaction_notifications} onCheckedChange={() => handleToggleWaSetting('transaction_notifications')} data-testid="wa-tx-notifications-toggle" />
+            </div>
+            <div className="flex items-center justify-between p-4 bg-[#0A0A0A] rounded-xl">
+              <div className="flex items-center gap-3">
+                <FileDown className="w-5 h-5 text-[#A1A1AA]" />
+                <div>
+                  <p className="font-medium text-white">Weekly Summary</p>
+                  <p className="text-sm text-[#A1A1AA]">Sunday digest of your finances</p>
+                </div>
+              </div>
+              <Switch checked={waSettings.weekly_summary} onCheckedChange={() => handleToggleWaSetting('weekly_summary')} data-testid="wa-weekly-summary-toggle" />
+            </div>
+            <div className="flex items-center justify-between p-4 bg-[#0A0A0A] rounded-xl">
+              <div className="flex items-center gap-3">
+                <Shield className="w-5 h-5 text-[#A1A1AA]" />
+                <div>
+                  <p className="font-medium text-white">Tax Deadline Reminders</p>
+                  <p className="text-sm text-[#A1A1AA]">Reminders 7 days before filing dates</p>
+                </div>
+              </div>
+              <Switch checked={waSettings.tax_reminders} onCheckedChange={() => handleToggleWaSetting('tax_reminders')} data-testid="wa-tax-reminders-toggle" />
+            </div>
           </CardContent>
         </Card>
 

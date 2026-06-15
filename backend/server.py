@@ -96,6 +96,7 @@ async def startup():
     await db.chat_history.create_index([("user_id", 1), ("session_id", 1)])
     await db.notifications.create_index([("user_id", 1), ("created_at", -1)])
     await db.transaction_memory.create_index([("user_id", 1), ("receiver_account", 1)], unique=True)
+    await db.transaction_memory.create_index([("user_id", 1), ("counterparty_account", 1)], unique=True, sparse=True)
     await db.pending_categorizations.create_index([("user_id", 1), ("created_at", -1)])
     await db.invoices.create_index([("user_id", 1), ("status", 1)])
     await db.invoices.create_index([("user_id", 1), ("total", 1)])

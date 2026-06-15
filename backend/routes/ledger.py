@@ -4,7 +4,7 @@ import logging
 import hmac
 import hashlib
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Depends, Request
 from bson import ObjectId
 
@@ -121,28 +121,50 @@ async def get_ai_guide_status(user: dict = Depends(get_current_user)):
 
 @router.post("/invoices")
 async def create_invoice(request: Request, user: dict = Depends(get_current_user)):
-    """Create an invoice for a customer."""
+    """Create an invoice with line items."""
     data = await request.json()
-    amount = float(data.get("amount", 0))
-    if amount <= 0:
-        raise HTTPException(status_code=400, detail="Amount must be positive")
+    items = data.get("items", [])
+    customer_name = data.get("customer_name", "")
+    customer_phone = data.get("customer_phone", "")
+    due_date = data.get("due_date")
+    vat_enabled = data.get("vat_enabled", False)
 
-    # Calculate VAT
-    is_vat_exempt = data.get("vat_exempt", False)
-    vat_amount = round(amount * 0.075, 2) if not is_vat_exempt else 0
+    if not customer_name:
+        raise HTTPException(status_code=400, detail="Customer name is required")
+
+    # Calculate totals from items
+    subtotal = 0
+    for item in items:
+        qty = float(item.get("quantity", 1))
+        price = float(item.get("unit_price", 0))
+        item["line_total"] = round(qty * price, 2)
+        subtotal += item["line_total"]
+
+    if subtotal <= 0:
+        raise HTTPException(status_code=400, detail="Invoice total must be positive")
+
+    vat_amount = round(subtotal * 0.075, 2) if vat_enabled else 0
+    total_amount = round(subtotal + vat_amount, 2)
+
+    # Auto-generate invoice number
+    count = await db.invoices.count_documents({"user_id": user["id"]})
+    inv_number = f"INV-{str(count + 1).zfill(3)}"
 
     invoice = {
         "id": str(uuid.uuid4()),
-        "invoice_number": f"INV-{datetime.now().strftime('%Y%m')}-{uuid.uuid4().hex[:6].upper()}",
+        "invoice_number": inv_number,
         "user_id": user["id"],
-        "customer_name": data.get("customer_name", ""),
-        "customer_email": data.get("customer_email", ""),
-        "description": data.get("description", ""),
-        "amount": amount,
+        "customer_name": customer_name,
+        "customer_phone": customer_phone,
+        "items": items,
+        "subtotal": subtotal,
         "vat_amount": vat_amount,
-        "total": round(amount + vat_amount, 2),
-        "vat_exempt": is_vat_exempt,
+        "total_amount": total_amount,
+        "vat_enabled": vat_enabled,
         "status": "unpaid",
+        "issue_date": datetime.now(timezone.utc).isoformat(),
+        "due_date": due_date or (datetime.now(timezone.utc) + timedelta(days=30)).isoformat(),
+        "paid_date": None,
         "matched_transaction_id": None,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
@@ -150,7 +172,7 @@ async def create_invoice(request: Request, user: dict = Depends(get_current_user
     await db.invoices.insert_one(invoice)
     invoice.pop("_id", None)
 
-    # Update accrued VAT liability
+    # Update accrued VAT
     if vat_amount > 0:
         await db.vat_liability.update_one(
             {"user_id": user["id"]},
@@ -166,7 +188,13 @@ async def get_invoices(status: str = None, user: dict = Depends(get_current_user
     query = {"user_id": user["id"]}
     if status:
         query["status"] = status
-    return await db.invoices.find(query, {"_id": 0}).sort("created_at", -1).limit(100).to_list(100)
+    invoices = await db.invoices.find(query, {"_id": 0}).sort("created_at", -1).limit(100).to_list(100)
+    # Mark overdue
+    now = datetime.now(timezone.utc).isoformat()
+    for inv in invoices:
+        if inv.get("status") == "unpaid" and inv.get("due_date") and inv["due_date"] < now:
+            inv["status"] = "overdue"
+    return invoices
 
 
 @router.get("/invoices/{invoice_id}")
@@ -175,6 +203,22 @@ async def get_invoice(invoice_id: str, user: dict = Depends(get_current_user)):
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
     return invoice
+
+
+@router.put("/invoices/{invoice_id}/status")
+async def update_invoice_status(invoice_id: str, request: Request, user: dict = Depends(get_current_user)):
+    data = await request.json()
+    new_status = data.get("status")
+    if new_status not in ["unpaid", "paid", "partial", "overdue"]:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    update = {"status": new_status}
+    if new_status == "paid":
+        update["paid_date"] = datetime.now(timezone.utc).isoformat()
+    await db.invoices.update_one(
+        {"id": invoice_id, "user_id": user["id"]},
+        {"$set": update}
+    )
+    return {"message": "Invoice status updated"}
 
 
 # ========================

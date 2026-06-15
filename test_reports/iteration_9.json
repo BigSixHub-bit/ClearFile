@@ -1,0 +1,125 @@
+{
+  "summary": "Tested iteration 9 features: duplicate detection, transaction memory, invoices, bank balance, WhatsApp settings, and frontend UI. Backend: 18/18 pytest passed for all new endpoints. Frontend: all required data-testid attributes present (duplicate-warning-banner, duplicate-pair-0, delete-duplicate-0, transaction-counterparty-input, smart-memory-section, whatsapp-settings-section). Dashboard bank balance correctly shows computed ₦395,000 instead of ₦0. Invoices page renders 5 invoices with proper status badges. Found ONE CRITICAL backend bug: stale MongoDB unique index `user_id_1_receiver_account_1` on `transaction_memory` collection from legacy WhatsApp code causes 500 Internal Server Error on POST /api/transactions whenever the user already has any transaction_memory document — making the new transaction creation fail intermittently after the first insert with a fresh counterparty.",
+
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/transactions",
+        "issue": "Returns 500 Internal Server Error due to stale legacy unique index `user_id_1_receiver_account_1` on db.transaction_memory. The new code in routes/transactions.py:_update_memory inserts documents using `counterparty_account` field and never sets `receiver_account`, so receiver_account=null for every new memory entry. The legacy index (from routes/whatsapp.py:save_category_to_memory) enforces uniqueness on (user_id, receiver_account=null) → second insert for the same user violates the unique constraint with `pymongo.errors.DuplicateKeyError: E11000`. Net effect: a user can only ever add a transaction with a NEW counterparty once; every subsequent new-counterparty transaction returns 500. Existing-counterparty inserts work because they take the duplicate-detection branch.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "routes/transactions.py vs routes/whatsapp.py",
+        "issue": "Two different schemas in the same `transaction_memory` collection: transactions.py uses `counterparty_account`, whatsapp.py uses `receiver_account`. The two memory readers/writers will never see each other's data and the legacy index breaks the new flow. Recommend: pick ONE field name (counterparty_account), drop the legacy index, migrate any existing rows, and update whatsapp.py to use the same field."
+      },
+      {
+        "endpoint": "routes/whatsapp.py",
+        "issue": "Function name collision: `get_transaction_memory` and `delete_memory` are defined in both transactions.py and whatsapp.py. They're on different routers so Python doesn't collide, but the duplicated /whatsapp/memory + /transaction-memory endpoints with different schemas is confusing and brittle."
+      }
+    ]
+  },
+
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Add Transaction → New counterparty",
+        "issue": "After the first successful transaction with a new counterparty, the second one fails with backend 500 (see critical issue above). User-facing impact: 'Failed to add transaction' error on most submissions in production.",
+        "affected_selectors": ["transaction-counterparty-input"]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "Dashboard",
+        "issues": [
+          "Recharts console warnings: 'width(-1) and height(-1) of chart should be greater than 0' — ResponsiveContainer height is unset/zero on initial render. Non-blocking but noisy."
+        ]
+      },
+      {
+        "screen": "Add Transaction Dialog",
+        "issues": [
+          "React aria warning: 'Missing Description or aria-describedby={undefined} for DialogContent' — accessibility nit."
+        ]
+      }
+    ]
+  },
+
+  "passed_tests": {
+    "backend": [
+      "POST /api/transactions creates a new transaction",
+      "POST /api/transactions detects duplicate (same amount ±2%, same date ±24h, same counterparty) returns duplicate_skipped/merged",
+      "GET /api/transactions/duplicates returns {duplicates, count}",
+      "POST /api/transactions/cleanup-duplicates returns {removed: int}",
+      "GET /api/transaction-memory returns list",
+      "GET /api/transaction-memory/check?counterparty_account=... returns {found: bool}",
+      "DELETE /api/transaction-memory/{bad-id} returns 404",
+      "POST /api/invoices creates invoice with line_total computed, subtotal/vat/total correct, invoice_number INV-NNN auto-incremented",
+      "POST /api/invoices with vat_enabled=true applies 7.5% VAT",
+      "POST /api/invoices without customer_name returns 400",
+      "POST /api/invoices with empty items returns 400",
+      "GET /api/invoices returns list (overdue marked)",
+      "GET /api/invoices/{id} returns single invoice",
+      "PUT /api/invoices/{id}/status with 'paid' updates status and sets paid_date",
+      "PUT /api/invoices/{id}/status with invalid status returns 400",
+      "GET /api/dashboard returns total_bank_balance computed (₦395,000) and has_linked_bank=false",
+      "GET /api/whatsapp/settings returns defaults {transaction_notifications, weekly_summary, tax_reminders}",
+      "PUT /api/whatsapp/settings persists toggles"
+    ],
+    "frontend": [
+      "Dashboard: BANK BALANCE card shows ₦395,000 with caption 'Computed from transactions'",
+      "Transactions page: counterparty input data-testid='transaction-counterparty-input' present in Add dialog",
+      "Transactions page: duplicate-warning-banner / duplicate-pair-0 / delete-duplicate-0 data-testid attributes present in source (banner conditional on duplicates>0)",
+      "Invoices page accessible at /invoices and listed in sidebar nav",
+      "Invoices page shows counts (Total 5, Unpaid 3, Paid 2, Overdue 0) and lists invoices with status badges (Paid green, Unpaid orange)",
+      "Settings page: data-testid='smart-memory-section' present with Soft Lock badge and learned 'Rent' category",
+      "Settings page: data-testid='whatsapp-settings-section' present with toggles for Transaction Notifications / Weekly Summary / Tax Deadline Reminders"
+    ]
+  },
+
+  "test_report_links": [
+    "/app/backend/tests/test_iteration9_features.py",
+    "/app/test_reports/pytest/iteration9_results.xml"
+  ],
+
+  "action_items": [
+    "URGENT: Drop the stale MongoDB index `user_id_1_receiver_account_1` on db.transaction_memory. Either run `db.transaction_memory.dropIndex('user_id_1_receiver_account_1')` once, OR add a startup migration. Then unify the field name to `counterparty_account` across both routes/transactions.py and routes/whatsapp.py (rename `receiver_account` → `counterparty_account` in whatsapp.py and migrate existing docs).",
+    "Add a unique partial index on (user_id, counterparty_account) WHERE counterparty_account IS NOT NULL to avoid duplicate memory rows for the same counterparty without blocking null-counterparty inserts.",
+    "Set explicit height on Recharts ResponsiveContainer on Dashboard to remove width(-1)/height(-1) console warnings.",
+    "Add aria-describedby or a hidden DialogDescription to the Add Transaction Dialog to silence the React aria warning.",
+    "Optional: Consolidate the two `get_transaction_memory` endpoints (/api/transaction-memory and /api/whatsapp/memory) into one to avoid schema drift."
+  ],
+
+  "critical_code_review_comments": [
+    "routes/transactions.py _update_memory uses `counterparty_account` while routes/whatsapp.py save_category_to_memory uses `receiver_account` in the same collection — schema drift that already broke production (500s).",
+    "routes/transactions.py _find_duplicate uses datetime.fromisoformat on a string field — if any historical doc has `date` stored as datetime (not string), `.replace('Z',...)` will raise. Add a type check.",
+    "routes/ledger.py invoice_number generation `INV-{count+1}` is NOT race-safe; concurrent creates can produce duplicate numbers. Use an atomic counter via findAndModify or a unique index on (user_id, invoice_number) with retry.",
+    "routes/ledger.py get_invoices marks overdue in-place but does not persist the status change — list shows 'overdue' but DB still says 'unpaid'. The status filter parameter will not match overdue invoices.",
+    "routes/transactions.py cleanup_duplicates deletes blindly without returning what was removed; safer to return the removed IDs for auditability.",
+    "routes/transactions.py _descriptions_overlap with 50% word-overlap threshold is aggressive; 'paid for rent' vs 'paid for fuel' (same amount/date) would match. Consider raising to 0.7.",
+    "routes/whatsapp.py classify_with_ai references model 'claude-opus-4-8' — unverified that emergentintegrations exposes this exact name. If wrong, will silently fall through to the Uncategorized branch (caught by try/except)."
+  ],
+
+  "updated_files": [
+    "/app/backend/tests/test_iteration9_features.py (new)"
+  ],
+
+  "success_rate": {
+    "backend": "100% (18/18 pytest) — but live POST /api/transactions returns 500 in real usage (bug not covered by tests because they hit the duplicate-detection branch first)",
+    "frontend": "100% (7/7 UI checks)"
+  },
+
+  "test_credentials": {
+    "admin": {"email": "admin@clearfileng.com", "password": "ClearFileNG2024!"}
+  },
+
+  "seed_data_creation": "Created 4 test invoices (INV-002..INV-005 with TEST_Customer Co. / TEST_NoVat Ltd) and several test transactions during pytest. Test data prefixed with TEST_ for easy cleanup.",
+
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+
+  "context_for_next_testing_agent": "All target API endpoints exist and return correct shape. Frontend has all required data-testids. The critical production bug is the stale `user_id_1_receiver_account_1` unique index on db.transaction_memory — caught only by direct curl POSTs against /api/transactions, not by the existing pytest (which exercises the duplicate-detection short-circuit). To reproduce: 1) login as admin 2) POST two transactions with DIFFERENT counterparty_account values e.g. 0111222333 and 0444555666 3) the second returns 500. Backend log shows pymongo.errors.DuplicateKeyError E11000. Banner UI was not visible during the run because the cleanup test deleted all duplicates; the conditional rendering code at Transactions.js:269 is correct.",
+
+  "rca_of_the_issue": "Two coexisting modules write to the same `db.transaction_memory` collection with different schemas. The whatsapp.py module created (in an earlier iteration) a unique compound index on (user_id, receiver_account). The new transactions.py module never sets `receiver_account`, so all rows it inserts have receiver_account=null. MongoDB treats missing keys as null and enforces uniqueness across them, so the second insert from the same user collides. Mitigation: 1) `db.transaction_memory.dropIndex('user_id_1_receiver_account_1')` 2) standardize the field name to `counterparty_account` everywhere 3) add a sparse/partial unique index on (user_id, counterparty_account) where counterparty_account exists."
+}

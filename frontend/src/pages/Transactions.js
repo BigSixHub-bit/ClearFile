@@ -13,7 +13,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { toast } from 'sonner';
 import { 
   Plus, Search, Filter, TrendingUp, TrendingDown, 
-  AlertTriangle, Upload, Trash2, Edit2, Camera
+  AlertTriangle, Upload, Trash2, Edit2, Camera, Copy, X
 } from 'lucide-react';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -27,12 +27,15 @@ export default function Transactions() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isReceiptDialogOpen, setIsReceiptDialogOpen] = useState(false);
+  const [duplicates, setDuplicates] = useState([]);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [newTransaction, setNewTransaction] = useState({
     amount: '',
     type: 'expense',
     category: '',
     description: '',
-    date: new Date().toISOString().split('T')[0]
+    date: new Date().toISOString().split('T')[0],
+    counterparty_account: ''
   });
 
   const fetchTransactions = useCallback(async () => {
@@ -41,7 +44,6 @@ export default function Transactions() {
       if (filter.type) params.append('type', filter.type);
       if (filter.category) params.append('category', filter.category);
       if (filter.flagged !== null) params.append('flagged', filter.flagged);
-
       const { data } = await axios.get(`${API}/api/transactions?${params}`, { withCredentials: true });
       setTransactions(data);
     } catch (error) {
@@ -60,28 +62,39 @@ export default function Transactions() {
     }
   };
 
+  const checkDuplicates = async () => {
+    try {
+      const { data } = await axios.get(`${API}/api/transactions/duplicates`, { withCredentials: true });
+      setDuplicates(data.duplicates || []);
+    } catch (e) {}
+  };
+
   useEffect(() => {
     fetchTransactions();
     fetchCategories();
+    checkDuplicates();
   }, [fetchTransactions]);
 
   const handleAddTransaction = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${API}/api/transactions`, {
+      const payload = {
         ...newTransaction,
         amount: parseFloat(newTransaction.amount)
-      }, { withCredentials: true });
-      toast.success('Transaction added!');
+      };
+      if (!payload.counterparty_account) delete payload.counterparty_account;
+      const { data } = await axios.post(`${API}/api/transactions`, payload, { withCredentials: true });
+      if (data.duplicate_skipped) {
+        toast.warning('Duplicate detected — transaction skipped');
+      } else if (data.duplicate_merged) {
+        toast.info('Existing transaction updated with more detail');
+      } else {
+        toast.success('Transaction added!');
+      }
       setIsAddDialogOpen(false);
-      setNewTransaction({
-        amount: '',
-        type: 'expense',
-        category: '',
-        description: '',
-        date: new Date().toISOString().split('T')[0]
-      });
+      setNewTransaction({ amount: '', type: 'expense', category: '', description: '', date: new Date().toISOString().split('T')[0], counterparty_account: '' });
       fetchTransactions();
+      checkDuplicates();
     } catch (error) {
       toast.error('Failed to add transaction');
     }
@@ -93,18 +106,28 @@ export default function Transactions() {
       await axios.delete(`${API}/api/transactions/${txId}`, { withCredentials: true });
       toast.success('Transaction deleted');
       fetchTransactions();
+      checkDuplicates();
     } catch (error) {
       toast.error('Failed to delete transaction');
+    }
+  };
+
+  const handleDeleteDuplicate = async (txId) => {
+    try {
+      await axios.delete(`${API}/api/transactions/${txId}`, { withCredentials: true });
+      toast.success('Duplicate removed');
+      setDuplicates(prev => prev.filter(d => d.duplicate.id !== txId));
+      fetchTransactions();
+    } catch (error) {
+      toast.error('Failed to delete');
     }
   };
 
   const handleUploadReceipt = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const formData = new FormData();
     formData.append('file', file);
-
     try {
       await axios.post(`${API}/api/receipts/upload`, formData, {
         withCredentials: true,
@@ -118,19 +141,11 @@ export default function Transactions() {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-NG', {
-      style: 'currency',
-      currency: 'NGN',
-      minimumFractionDigits: 0
-    }).format(amount).replace('NGN', '₦');
+    return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', minimumFractionDigits: 0 }).format(amount).replace('NGN', '₦');
   };
 
   const formatDate = (dateStr) => {
-    return new Date(dateStr).toLocaleDateString('en-NG', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    });
+    return new Date(dateStr).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
   const filteredTransactions = transactions.filter(tx =>
@@ -169,13 +184,7 @@ export default function Transactions() {
                     <Upload className="w-12 h-12 text-[#555] mx-auto mb-4" />
                     <p className="text-[#A1A1AA] mb-2">Upload a receipt image</p>
                     <p className="text-sm text-[#555]">JPEG, PNG, WebP, or PDF</p>
-                    <Input
-                      type="file"
-                      accept="image/*,.pdf"
-                      onChange={handleUploadReceipt}
-                      className="mt-4"
-                      data-testid="receipt-file-input"
-                    />
+                    <Input type="file" accept="image/*,.pdf" onChange={handleUploadReceipt} className="mt-4" data-testid="receipt-file-input" />
                   </div>
                 </div>
               </DialogContent>
@@ -210,24 +219,13 @@ export default function Transactions() {
                     <Label>{t('amount')}</Label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A1A1AA]">₦</span>
-                      <Input
-                        type="number"
-                        value={newTransaction.amount}
-                        onChange={(e) => setNewTransaction({ ...newTransaction, amount: e.target.value })}
-                        placeholder="0.00"
-                        className="pl-8 rounded-xl"
-                        required
-                        data-testid="transaction-amount-input"
-                      />
+                      <Input type="number" value={newTransaction.amount} onChange={(e) => setNewTransaction({ ...newTransaction, amount: e.target.value })} placeholder="0.00" className="pl-8 rounded-xl" required data-testid="transaction-amount-input" />
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     <Label>{t('category')}</Label>
-                    <Select
-                      value={newTransaction.category}
-                      onValueChange={(v) => setNewTransaction({ ...newTransaction, category: v })}
-                    >
+                    <Select value={newTransaction.category} onValueChange={(v) => setNewTransaction({ ...newTransaction, category: v })}>
                       <SelectTrigger className="rounded-xl" data-testid="transaction-category-select">
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
@@ -241,25 +239,17 @@ export default function Transactions() {
 
                   <div className="space-y-2">
                     <Label>{t('description')}</Label>
-                    <Input
-                      value={newTransaction.description}
-                      onChange={(e) => setNewTransaction({ ...newTransaction, description: e.target.value })}
-                      placeholder="What was this for?"
-                      className="rounded-xl"
-                      required
-                      data-testid="transaction-description-input"
-                    />
+                    <Input value={newTransaction.description} onChange={(e) => setNewTransaction({ ...newTransaction, description: e.target.value })} placeholder="What was this for?" className="rounded-xl" required data-testid="transaction-description-input" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Account Number (optional)</Label>
+                    <Input value={newTransaction.counterparty_account} onChange={(e) => setNewTransaction({ ...newTransaction, counterparty_account: e.target.value })} placeholder="Recipient's 10-digit account" className="rounded-xl" maxLength={10} data-testid="transaction-counterparty-input" />
                   </div>
 
                   <div className="space-y-2">
                     <Label>{t('date')}</Label>
-                    <Input
-                      type="date"
-                      value={newTransaction.date}
-                      onChange={(e) => setNewTransaction({ ...newTransaction, date: e.target.value })}
-                      className="rounded-xl"
-                      data-testid="transaction-date-input"
-                    />
+                    <Input type="date" value={newTransaction.date} onChange={(e) => setNewTransaction({ ...newTransaction, date: e.target.value })} className="rounded-xl" data-testid="transaction-date-input" />
                   </div>
 
                   <Button type="submit" className="w-full bg-[#00C896] hover:bg-[#00dba6] text-white rounded-xl" data-testid="submit-transaction-btn">
@@ -270,6 +260,68 @@ export default function Transactions() {
             </Dialog>
           </div>
         </div>
+
+        {/* Duplicate Warning Banner */}
+        {duplicates.length > 0 && (
+          <button
+            onClick={() => setShowDuplicateModal(true)}
+            className="w-full flex items-center gap-3 p-4 bg-[#F59E0B]/10 border border-[#F59E0B]/30 rounded-2xl text-left hover:bg-[#F59E0B]/15 transition-colors"
+            data-testid="duplicate-warning-banner"
+          >
+            <AlertTriangle className="w-5 h-5 text-[#F59E0B] flex-shrink-0" />
+            <span className="text-sm text-[#F59E0B]">
+              We found {duplicates.length} possible duplicate transaction{duplicates.length > 1 ? 's' : ''}. Tap here to review.
+            </span>
+          </button>
+        )}
+
+        {/* Duplicate Review Modal */}
+        <Dialog open={showDuplicateModal} onOpenChange={setShowDuplicateModal}>
+          <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Copy className="w-5 h-5 text-[#F59E0B]" />
+                Suspected Duplicates ({duplicates.length})
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {duplicates.map((pair, idx) => (
+                <div key={idx} className="border border-[#1E1E1E] rounded-xl p-4 space-y-3" data-testid={`duplicate-pair-${idx}`}>
+                  <div className="flex items-center gap-2 text-xs text-[#A1A1AA]">
+                    <Badge variant="outline" className="text-[#F59E0B] border-[#F59E0B]/30">{pair.reason}</Badge>
+                  </div>
+                  <div className="grid grid-cols-1 gap-2">
+                    <div className="flex items-center justify-between p-3 bg-[#0A0A0A] rounded-lg">
+                      <div>
+                        <p className="text-sm text-white font-medium">{pair.original.description}</p>
+                        <p className="text-xs text-[#A1A1AA]">{formatCurrency(pair.original.amount)} · {formatDate(pair.original.date)}</p>
+                      </div>
+                      <Badge className="bg-[#00C896]/10 text-[#00C896] text-xs">Keep</Badge>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-red-500/5 rounded-lg border border-red-500/10">
+                      <div>
+                        <p className="text-sm text-white font-medium">{pair.duplicate.description}</p>
+                        <p className="text-xs text-[#A1A1AA]">{formatCurrency(pair.duplicate.amount)} · {formatDate(pair.duplicate.date)}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDeleteDuplicate(pair.duplicate.id)}
+                        className="text-xs rounded-lg"
+                        data-testid={`delete-duplicate-${idx}`}
+                      >
+                        <Trash2 className="w-3 h-3 mr-1" /> Remove
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {duplicates.length === 0 && (
+                <p className="text-center text-[#A1A1AA] py-6">No duplicates found</p>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -299,13 +351,7 @@ export default function Transactions() {
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#555]" />
-                <Input
-                  placeholder="Search transactions..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 rounded-xl"
-                  data-testid="search-transactions-input"
-                />
+                <Input placeholder="Search transactions..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 rounded-xl" data-testid="search-transactions-input" />
               </div>
               <Select value={filter.type || 'all'} onValueChange={(v) => setFilter({ ...filter, type: v === 'all' ? '' : v })}>
                 <SelectTrigger className="w-full sm:w-40 rounded-xl" data-testid="filter-type-select">
@@ -359,7 +405,7 @@ export default function Transactions() {
                       </div>
                       <div>
                         <p className="font-medium text-white">{tx.description}</p>
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <Badge variant="outline" className="text-xs">{tx.category}</Badge>
                           <span className="text-xs text-[#555]">{formatDate(tx.date)}</span>
                           {tx.flagged && (

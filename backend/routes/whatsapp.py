@@ -10,6 +10,7 @@ MSME Transaction Guardrails:
 import uuid
 import os
 import re
+import json
 import logging
 import httpx
 from datetime import datetime, timezone, timedelta
@@ -20,6 +21,7 @@ from typing import Optional
 from database import db
 from utils.auth import get_current_user
 from utils.tax import calculate_pita, calculate_cita
+from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +30,54 @@ router = APIRouter()
 WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN", "")
 WHATSAPP_PHONE_NUMBER_ID = os.environ.get("WHATSAPP_PHONE_NUMBER_ID", "")
 WHATSAPP_VERIFY_TOKEN = os.environ.get("WHATSAPP_VERIFY_TOKEN", "clearfileng_webhook_verify_2024")
+EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
+
+CLEARFILE_AI_SYSTEM_PROMPT = """You are ClearFile, a bookkeeping assistant for Nigerian small business owners. You work through WhatsApp. You understand Nigerian Pidgin English and Standard English equally. You never use accounting words like debit, credit, ledger, journal entry, or accrual. You keep every message short and clear. You only ask one question per message. You never send more than 3 messages in a row without waiting for a reply.
+
+You understand these Nigerian business phrases automatically:
+- 'my customer just paid' or 'my buyer settle me' or 'they send am' = Sales Revenue
+- 'I collected advance' or 'customer drop something' = Customer Deposit
+- 'I buy fuel for generator' or 'I buy gen fuel' or 'I buy diesel' = Utilities - Generator
+- 'I pay transport' or 'I take keke' or 'I enter uber' or 'I take okada' = Travel and Transport
+- 'I pay my boy' or 'I settle my staff' or 'I pay salary' = Staff Wages
+- 'I buy goods' or 'I restock' or 'I buy market' or 'I buy materials' = Cost of Goods
+- 'I pay for space' or 'I settle oga landlord' or 'I pay rent' = Rent
+- 'I buy data' or 'I recharge' = Communication
+- 'I send to my wife' or 'I send home' or 'I dash family' = Personal expense - Owner's Draw
+- 'I put money inside the business' or 'I fund the business' = Owner Capital Injection
+- 'I borrow from business' = Owner's Draw / Loan from Business
+
+If the user description is unclear after 2 exchanges, classify as Uncategorized and tell the user to edit it later.
+
+Respond ONLY with a valid JSON object. No other text. The JSON must have these fields: category (string), confidence (number between 0 and 1), isPersonalRisk (boolean — true if this might be a personal expense), requiresClarification (boolean), clarificationQuestion (string or null), shortDescription (plain English description of what this transaction is for)"""
+
+
+async def classify_with_ai(description: str, amount: float = 0, tx_type: str = "expense") -> dict:
+    """Use Claude Opus 4.8 to classify a transaction."""
+    try:
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"clearfile_classify_{uuid.uuid4().hex[:8]}",
+            system_message=CLEARFILE_AI_SYSTEM_PROMPT
+        ).with_model("anthropic", "claude-opus-4-8")
+
+        prompt = f"Transaction: {tx_type.upper()} of ₦{amount:,.0f}. Description: \"{description}\""
+        response = await chat.send_message(UserMessage(text=prompt))
+        text = response.text.strip()
+
+        # Extract JSON from response
+        if text.startswith("{"):
+            return json.loads(text)
+        # Try to find JSON in response
+        match = re.search(r'\{.*\}', text, re.DOTALL)
+        if match:
+            return json.loads(match.group(0))
+        return {"category": "Uncategorized", "confidence": 0, "isPersonalRisk": False, "requiresClarification": True, "clarificationQuestion": "What was this payment for?", "shortDescription": description}
+    except Exception as e:
+        logger.error(f"AI classification error: {e}")
+        return {"category": "Uncategorized", "confidence": 0, "isPersonalRisk": False, "requiresClarification": True, "clarificationQuestion": "What was this payment for?", "shortDescription": description}
 WHATSAPP_API_URL = f"https://graph.facebook.com/v21.0/{WHATSAPP_PHONE_NUMBER_ID}/messages"
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://tax-naira.preview.emergentagent.com")
+FRONTEND_URL = os.environ.get("FRONTEND_URL")
 
 # ========================
 # CONSTANTS
@@ -426,6 +474,30 @@ async def send_tax_summary(user_id: str, phone: str):
 # ========================
 # WEBHOOK ENDPOINTS
 # ========================
+
+@router.get("/whatsapp/settings")
+async def get_whatsapp_settings(user: dict = Depends(get_current_user)):
+    """Get user's WhatsApp notification settings."""
+    settings = await db.whatsapp_settings.find_one({"user_id": user["id"]}, {"_id": 0})
+    if not settings:
+        return {"phone": None, "transaction_notifications": True, "weekly_summary": True, "tax_reminders": True}
+    return settings
+
+
+@router.put("/whatsapp/settings")
+async def update_whatsapp_settings(request: Request, user: dict = Depends(get_current_user)):
+    """Update WhatsApp notification preferences."""
+    data = await request.json()
+    allowed = {"transaction_notifications", "weekly_summary", "tax_reminders"}
+    update = {k: v for k, v in data.items() if k in allowed}
+    if update:
+        await db.whatsapp_settings.update_one(
+            {"user_id": user["id"]},
+            {"$set": update},
+            upsert=True
+        )
+    return {"message": "Settings updated"}
+
 
 @router.get("/whatsapp/webhook")
 async def verify_webhook(request: Request):

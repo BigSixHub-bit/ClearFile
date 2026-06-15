@@ -34,6 +34,7 @@ class TransactionCreate(BaseModel):
     description: str
     date: Optional[str] = None
     bank_account_id: Optional[str] = None
+    counterparty_account: Optional[str] = None
 
 
 class TransactionResponse(BaseModel):
