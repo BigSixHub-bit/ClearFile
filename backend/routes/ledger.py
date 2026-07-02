@@ -189,11 +189,12 @@ async def get_invoices(status: str = None, user: dict = Depends(get_current_user
     if status:
         query["status"] = status
     invoices = await db.invoices.find(query, {"_id": 0}).sort("created_at", -1).limit(100).to_list(100)
-    # Mark overdue
+    # Mark overdue and persist
     now = datetime.now(timezone.utc).isoformat()
     for inv in invoices:
         if inv.get("status") == "unpaid" and inv.get("due_date") and inv["due_date"] < now:
             inv["status"] = "overdue"
+            await db.invoices.update_one({"id": inv["id"]}, {"$set": {"status": "overdue"}})
     return invoices
 
 

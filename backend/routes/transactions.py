@@ -37,7 +37,7 @@ def _descriptions_overlap(a: str, b: str) -> bool:
     if not words_a or not words_b:
         return False
     overlap = len(words_a & words_b) / max(len(words_a), len(words_b))
-    return overlap >= 0.5
+    return overlap >= 0.7
 
 
 async def _find_duplicate(user_id: str, amount: float, date_str: str, description: str, counterparty: Optional[str] = None):

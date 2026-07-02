@@ -45,8 +45,18 @@
 - Flutterwave V4 OAuth2 credentials returning 401 from idp.flutterwave.com — user needs to verify FLW_CLIENT_ID/FLW_CLIENT_SECRET in Flutterwave dashboard
 - Mono bank linking: MOCKED (waiting for user to provide Mono API keys)
 
-## Testing: iteration_8 — 100% (11/11 backend, 8/8 frontend)
-## Credentials: admin@clearfileng.com / ClearFileNG2024!
+## Phase 1 Mega-Update (June 2026) — COMPLETE & TESTED (iteration_9, 100%)
+- [x] Urgent: Duplicate transaction detection + one-time cleanup + UI warning banner/modal
+- [x] Update 1: Transaction Memory (auto-categorization, soft/hard locks, Settings management)
+- [x] Update 2: WhatsApp AI upgraded to Claude Opus 4.8 (emergentintegrations LlmChat)
+- [x] Update 3: Invoice Management (CRUD backend + /invoices page, auto-reconciliation, overdue status persisted to DB)
+- [x] Update 4: Bank balance calculation fixed (accurate inflow/outflow sums)
+- [x] Update 5: WhatsApp Setup panel in Settings
+- [x] Update 6: Renamed project to ClearFile NG
+- [x] Post-test fixes: dropped stale `user_id_1_receiver_account_1` index (verified via startup migration), duplicate description overlap threshold raised to 0.7, overdue invoice status persisted
+
+## Testing: iteration_8 — 100% (11/11 backend, 8/8 frontend); iteration_9 — 100% (Phase 1 features)
+## Credentials: admin@clearfileng.com / ClearFileNG2024! (cookie-based auth)
 
 ## Upcoming Tasks
 - P1: Live Mono Bank Linking Integration (user providing keys)

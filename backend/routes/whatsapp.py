@@ -229,7 +229,7 @@ async def clear_user_state(user_id: str):
 async def get_category_from_memory(user_id: str, receiver_account: str) -> Optional[str]:
     if not receiver_account:
         return None
-    memory = await db.transaction_memory.find_one({"user_id": user_id, "receiver_account": receiver_account})
+    memory = await db.transaction_memory.find_one({"user_id": user_id, "counterparty_account": receiver_account})
     return memory.get("category") if memory else None
 
 
@@ -237,7 +237,7 @@ async def save_category_to_memory(user_id: str, receiver_account: str, category:
     if not receiver_account:
         return
     await db.transaction_memory.update_one(
-        {"user_id": user_id, "receiver_account": receiver_account},
+        {"user_id": user_id, "counterparty_account": receiver_account},
         {"$set": {"category": category, "updated_at": datetime.now(timezone.utc).isoformat()},
          "$setOnInsert": {"created_at": datetime.now(timezone.utc).isoformat()}},
         upsert=True
