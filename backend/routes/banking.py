@@ -262,7 +262,9 @@ async def mono_webhook(request: Request):
     signature = request.headers.get("mono-webhook-secret")
     body = await request.body()
 
-    if MONO_WEBHOOK_SECRET and signature:
+    if MONO_WEBHOOK_SECRET:
+        if not signature:
+            raise HTTPException(status_code=401, detail="Missing webhook signature")
         computed = hmac.new(MONO_WEBHOOK_SECRET.encode(), body, hashlib.sha256).hexdigest()
         if not hmac.compare_digest(computed, signature):
             raise HTTPException(status_code=401, detail="Invalid webhook signature")

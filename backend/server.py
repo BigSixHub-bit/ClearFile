@@ -4,7 +4,8 @@ load_dotenv()
 import os
 import logging
 from datetime import datetime, timezone
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, Request
+from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 
 from database import db
@@ -74,14 +75,40 @@ async def health_check():
 # Include the router in the main app
 app.include_router(api_router)
 
-# CORS Configuration
+# CORS Configuration — restricted to the app origin (no wildcard with credentials)
+_cors_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip() and o.strip() != "*"]
+_frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+if _frontend_url not in _cors_origins:
+    _cors_origins.append(_frontend_url)
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=[os.environ.get('FRONTEND_URL', 'http://localhost:3000'), "*"],
+    allow_origins=_cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    if _frontend_url.startswith("https"):
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled error on {request.url.path}: {type(exc).__name__}: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Something went wrong. Please try again."},
+        headers={"Access-Control-Allow-Origin": _frontend_url, "Access-Control-Allow-Credentials": "true"}
+    )
 
 
 @app.on_event("startup")
@@ -110,6 +137,9 @@ async def startup():
     await db.vat_liability.create_index("user_id", unique=True)
     await db.wa_conversation_state.create_index("user_id", unique=True)
     await db.ai_guide_unlocks.create_index([("user_id", 1), ("status", 1)])
+    await db.rate_limits.create_index("key", unique=True)
+    await db.rate_limits.create_index("expires_at", expireAfterSeconds=0)
+    await db.login_history.create_index([("user_id", 1), ("created_at", -1)])
 
     # Initialize storage
     try:

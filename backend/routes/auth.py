@@ -11,8 +11,9 @@ from config import RESEND_API_KEY, SENDER_EMAIL, FRONTEND_URL, get_jwt_secret, J
 from models import UserRegister, UserLogin, PasswordResetRequest, PasswordResetConfirm
 from utils.auth import (
     hash_password, verify_password, create_access_token,
-    create_refresh_token, get_current_user
+    create_refresh_token, get_current_user, set_auth_cookies
 )
+from utils.security import rate_limit, get_client_ip, record_login_event
 
 import jwt as pyjwt
 
@@ -25,7 +26,10 @@ router = APIRouter()
 
 
 @router.post("/auth/register")
-async def register(user_data: UserRegister, response: Response):
+async def register(user_data: UserRegister, response: Response, request: Request):
+    await rate_limit("register", 5, 3600, get_client_ip(request))
+    if len(user_data.password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
     email = user_data.email.lower()
     existing = await db.users.find_one({"email": email})
     if existing:
@@ -76,9 +80,7 @@ async def register(user_data: UserRegister, response: Response):
 
     access_token = create_access_token(user_id, email)
     refresh_token = create_refresh_token(user_id)
-
-    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=False, samesite="lax", max_age=3600, path="/")
-    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=False, samesite="lax", max_age=604800, path="/")
+    set_auth_cookies(response, access_token, refresh_token)
 
     return {
         "id": user_id, "email": email, "name": user_data.name,
@@ -93,7 +95,7 @@ async def register(user_data: UserRegister, response: Response):
 @router.post("/auth/login")
 async def login(credentials: UserLogin, response: Response, request: Request):
     email = credentials.email.lower()
-    identifier = f"{request.client.host}:{email}"
+    identifier = f"{get_client_ip(request)}:{email}"
 
     attempts = await db.login_attempts.find_one({"identifier": identifier})
     if attempts and attempts.get("count", 0) >= 5:
@@ -117,11 +119,15 @@ async def login(credentials: UserLogin, response: Response, request: Request):
     await db.login_attempts.delete_one({"identifier": identifier})
 
     user_id = str(user["_id"])
-    access_token = create_access_token(user_id, email)
-    refresh_token = create_refresh_token(user_id)
+    tv = user.get("token_version", 0)
+    access_token = create_access_token(user_id, email, tv)
+    refresh_token = create_refresh_token(user_id, tv)
+    set_auth_cookies(response, access_token, refresh_token)
 
-    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=False, samesite="lax", max_age=3600, path="/")
-    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=False, samesite="lax", max_age=604800, path="/")
+    try:
+        await record_login_event(user_id, request)
+    except Exception as e:
+        logger.warning(f"Login event recording failed: {e}")
 
     return {
         "id": user_id, "email": user["email"], "name": user["name"],
@@ -179,7 +185,8 @@ async def verify_email(request: Request):
 
 
 @router.post("/auth/resend-verification")
-async def resend_verification(user: dict = Depends(get_current_user)):
+async def resend_verification(request: Request, user: dict = Depends(get_current_user)):
+    await rate_limit("resend_verification", 3, 900, user["id"])
     if user.get("email_verified"):
         return {"message": "Email already verified"}
     if not RESEND_API_KEY:
@@ -217,7 +224,8 @@ async def resend_verification(user: dict = Depends(get_current_user)):
 
 
 @router.post("/auth/forgot-password")
-async def forgot_password(data: PasswordResetRequest):
+async def forgot_password(data: PasswordResetRequest, request: Request):
+    await rate_limit("forgot_password", 3, 900, get_client_ip(request))
     email = data.email.lower()
     user = await db.users.find_one({"email": email})
     if not user:
@@ -259,9 +267,10 @@ async def forgot_password(data: PasswordResetRequest):
 
 
 @router.post("/auth/reset-password")
-async def reset_password(data: PasswordResetConfirm):
-    if len(data.new_password) < 6:
-        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+async def reset_password(data: PasswordResetConfirm, request: Request):
+    await rate_limit("reset_password", 5, 900, get_client_ip(request))
+    if len(data.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
 
     user = await db.users.find_one({"reset_token": data.token})
     if not user:
@@ -277,10 +286,11 @@ async def reset_password(data: PasswordResetConfirm):
         {"_id": user["_id"]},
         {
             "$set": {"password_hash": hash_password(data.new_password)},
-            "$unset": {"reset_token": "", "reset_expires": ""}
+            "$unset": {"reset_token": "", "reset_expires": ""},
+            "$inc": {"token_version": 1}
         }
     )
-    return {"message": "Password reset successfully"}
+    return {"message": "Password reset successfully. All existing sessions have been signed out."}
 
 
 @router.post("/auth/refresh")
@@ -295,10 +305,12 @@ async def refresh_token(request: Request, response: Response):
         user = await db.users.find_one({"_id": ObjectId(payload["sub"])})
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
+        if payload.get("tv", 0) != user.get("token_version", 0):
+            raise HTTPException(status_code=401, detail="Session revoked. Please log in again.")
 
         user_id = str(user["_id"])
-        access_token = create_access_token(user_id, user["email"])
-        response.set_cookie(key="access_token", value=access_token, httponly=True, secure=False, samesite="lax", max_age=3600, path="/")
+        access_token = create_access_token(user_id, user["email"], user.get("token_version", 0))
+        set_auth_cookies(response, access_token)
         return {"message": "Token refreshed"}
     except pyjwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Refresh token expired")
@@ -322,8 +334,10 @@ async def update_settings(request: Request, user: dict = Depends(get_current_use
 async def update_subscription(request: Request, user: dict = Depends(get_current_user)):
     data = await request.json()
     plan = data.get("plan")
-    if plan not in ["starter", "pro", "growth", "business"]:
-        raise HTTPException(status_code=400, detail="Invalid subscription plan")
+    # Security: self-service endpoint only allows downgrade/cancel to starter.
+    # Upgrades must go through the payment flow (/api/subscription/initialize).
+    if plan != "starter":
+        raise HTTPException(status_code=403, detail="Plan upgrades must be completed through the payment flow")
     await db.users.update_one(
         {"_id": ObjectId(user["id"])},
         {"$set": {"subscription_plan": plan}}

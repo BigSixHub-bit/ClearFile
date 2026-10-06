@@ -8,6 +8,7 @@ from typing import Optional
 from database import db
 from models import ChatMessage
 from utils.auth import get_current_user
+from utils.security import rate_limit
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 logger = logging.getLogger(__name__)
@@ -17,6 +18,9 @@ router = APIRouter()
 
 @router.post("/chat")
 async def chat_with_assistant(message: ChatMessage, user: dict = Depends(get_current_user)):
+    await rate_limit("ai_chat", 20, 300, user["id"])
+    if len(message.message) > 4000:
+        raise HTTPException(status_code=400, detail="Message too long (max 4000 characters)")
     api_key = os.environ.get("EMERGENT_LLM_KEY")
     if not api_key:
         raise HTTPException(status_code=500, detail="AI service not configured")

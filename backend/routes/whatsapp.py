@@ -30,6 +30,7 @@ router = APIRouter()
 WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN", "")
 WHATSAPP_PHONE_NUMBER_ID = os.environ.get("WHATSAPP_PHONE_NUMBER_ID", "")
 WHATSAPP_VERIFY_TOKEN = os.environ.get("WHATSAPP_VERIFY_TOKEN", "clearfileng_webhook_verify_2024")
+WHATSAPP_APP_SECRET = os.environ.get("WHATSAPP_APP_SECRET", "")
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY", "")
 
 CLEARFILE_AI_SYSTEM_PROMPT = """You are ClearFile, a bookkeeping assistant for Nigerian small business owners. You work through WhatsApp. You understand Nigerian Pidgin English and Standard English equally. You never use accounting words like debit, credit, ledger, journal entry, or accrual. You keep every message short and clear. You only ask one question per message. You never send more than 3 messages in a row without waiting for a reply.
@@ -513,7 +514,17 @@ async def verify_webhook(request: Request):
 async def whatsapp_webhook(request: Request):
     """Main WhatsApp webhook — handles all conversation flows."""
     try:
-        payload = await request.json()
+        body = await request.body()
+        # Validate Meta signature when app secret is configured
+        if WHATSAPP_APP_SECRET:
+            import hmac as _hmac
+            import hashlib as _hashlib
+            sig = request.headers.get("x-hub-signature-256", "")
+            expected = "sha256=" + _hmac.new(WHATSAPP_APP_SECRET.encode(), body, _hashlib.sha256).hexdigest()
+            if not _hmac.compare_digest(expected, sig):
+                logger.warning("WhatsApp webhook: invalid signature rejected")
+                raise HTTPException(status_code=403, detail="Invalid signature")
+        payload = json.loads(body)
         message_body = ""
         sender = ""
         button_id = None

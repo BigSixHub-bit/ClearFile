@@ -28,13 +28,16 @@ async def upload_receipt(file: UploadFile = File(...), user: dict = Depends(get_
         if receipt_count >= 10:
             raise HTTPException(status_code=403, detail="Starter plan limited to 10 receipts/month")
 
-    allowed_types = ["image/jpeg", "image/png", "image/webp", "application/pdf"]
+    allowed_types = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "application/pdf": "pdf"}
     if file.content_type not in allowed_types:
         raise HTTPException(status_code=400, detail="Invalid file type. Use JPEG, PNG, WebP, or PDF.")
 
-    ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
-    storage_path = f"{APP_NAME}/receipts/{user['id']}/{uuid.uuid4()}.{ext}"
     file_data = await file.read()
+    if len(file_data) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File too large. Maximum size is 10MB.")
+
+    ext = allowed_types[file.content_type]
+    storage_path = f"{APP_NAME}/receipts/{user['id']}/{uuid.uuid4()}.{ext}"
 
     try:
         result = put_object(storage_path, file_data, file.content_type)

@@ -154,6 +154,10 @@ export default function Landing() {
             </div>
             <span className="text-sm text-[#A1A1AA]">ClearFile NG</span>
           </div>
+          <div className="flex items-center gap-4">
+            <Link to="/privacy" data-testid="footer-privacy-link" className="text-xs text-[#A1A1AA] hover:text-[#00C896] transition-colors">Privacy Policy</Link>
+            <Link to="/terms" data-testid="footer-terms-link" className="text-xs text-[#A1A1AA] hover:text-[#00C896] transition-colors">Terms of Service</Link>
+          </div>
           <p className="text-xs text-[#333]">&copy; {new Date().getFullYear()} ClearFile NG. All rights reserved.</p>
         </div>
       </footer>
