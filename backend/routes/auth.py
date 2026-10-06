@@ -27,7 +27,7 @@ router = APIRouter()
 
 @router.post("/auth/register")
 async def register(user_data: UserRegister, response: Response, request: Request):
-    await rate_limit("register", 5, 3600, get_client_ip(request))
+    await rate_limit("register", 10, 3600, get_client_ip(request))
     if len(user_data.password) < 8:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
     email = user_data.email.lower()

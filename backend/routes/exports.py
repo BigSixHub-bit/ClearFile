@@ -1,7 +1,7 @@
 import io
 import csv
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Depends, Query
 from fastapi.responses import StreamingResponse
 
@@ -302,7 +302,6 @@ async def get_report_summary(period: str = "month", user: dict = Depends(get_cur
     else:
         start_date = now - timedelta(days=30)
 
-    from datetime import timedelta
     transactions = await db.transactions.find({
         "user_id": user_id,
         "date": {"$gte": start_date.isoformat()}

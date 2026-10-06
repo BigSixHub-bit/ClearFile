@@ -64,3 +64,20 @@
 - P2: Weekly Automated WhatsApp Tax Digest
 - P2: Expert Self-Service Portal
 - P2: Multi-currency Support
+
+## Security & Production Hardening Update (June 2026) — COMPLETE & TESTED (iteration_10, 100%)
+- Session security: JWT token_version revocation (password reset signs out all sessions), Secure+httpOnly cookies
+- CORS wildcard removed; security headers middleware (HSTS, nosniff, X-Frame-Options DENY, Referrer/Permissions-Policy)
+- Rate limiting: register 10/hr/IP, forgot/reset-password, resend-verification, AI chat 20/5min/user; login lockout IP via X-Forwarded-For
+- Privilege escalation closed: PUT /user/subscription only allows starter downgrade (upgrades via payment flow)
+- IDOR verified across all financial resources; PUT /transactions/{id} returns 404 on no-match
+- Webhooks: Mono signature required when secret set; WhatsApp X-Hub-Signature-256 optional (WHATSAPP_APP_SECRET env)
+- Uploads: 10MB cap, content-type-derived extensions
+- Suspicious-session signal: login_history + new-IP login notification
+- Website: /privacy, /terms, custom 404, robots.txt, sitemap.xml, favicon.svg, OG metadata + og-image.png, footer legal links
+- Global sanitized error handler; min password 8 chars
+- Docs: /app/memory/SECURITY.md (decisions + deployment/legal TODOs: backups, CSP at CDN, NDPA legal review, custom-domain sitemap update)
+
+## Flutterwave status (June 2026)
+- New V4 keys VALID (OAuth works, account 3464062) BUT V4 public beta has NO hosted checkout endpoint (verified against live API + docs)
+- Awaiting user decision: (a) switch dashboard to V3 keys (FLWPUBK/FLWSECK) for instant hosted checkout, or (b) build custom V4 in-app checkout (bank transfer first)

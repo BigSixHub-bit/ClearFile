@@ -183,10 +183,12 @@ async def update_transaction(tx_id: str, request: Request, user: dict = Depends(
         if field in data:
             update_fields[field] = data[field]
     if update_fields:
-        await db.transactions.update_one(
+        result = await db.transactions.update_one(
             {"id": tx_id, "user_id": user["id"]},
             {"$set": update_fields}
         )
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Transaction not found")
     return {"message": "Transaction updated"}
 
 

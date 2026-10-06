@@ -13,7 +13,7 @@ the owner's checklist was mapped onto the actual stack.
 - Security headers middleware: X-Content-Type-Options, X-Frame-Options=DENY, Referrer-Policy, Permissions-Policy, HSTS (https only).
 - Global exception handler: unhandled errors return a generic message; details only in server logs.
 - Rate limiting (Mongo-backed, TTL-cleaned `rate_limits` collection):
-  - register: 5/hour/IP
+  - register: 10/hour/IP
   - forgot-password: 3/15min/IP
   - reset-password: 5/15min/IP
   - resend-verification: 3/15min/user
