@@ -27,7 +27,7 @@ export default function ChatAssistant() {
     setMessages([
       {
         role: 'assistant',
-        content: `Hello ${user?.name?.split(' ')[0] || 'there'}! I'm your ClearFile NG Tax Assistant. I can help you understand Nigerian tax laws, calculate estimates, and answer questions about PITA, CITA, VAT, and WHT. What would you like to know?`
+        content: `Hello ${user?.name?.split(' ')[0] || 'there'}! I'm your ClearFile NG Tax Assistant. I can help you understand Nigerian tax laws, calculate estimates, and answer questions about NTA 2025, VAT, and WHT. What would you like to know?`
       }
     ]);
   }, [user]);
@@ -65,10 +65,10 @@ export default function ChatAssistant() {
   };
 
   const suggestedQuestions = [
-    "How do I calculate my PITA?",
+    "How do I calculate my NTA 2025?",
     "What expenses are tax deductible?",
     "When is the VAT filing deadline?",
-    "What's the difference between PITA and CITA?"
+    "What's the difference between NTA 2025 and NTA 2025?"
   ];
 
   return (

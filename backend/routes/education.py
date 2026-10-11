@@ -9,10 +9,10 @@ router = APIRouter()
 TAX_ARTICLES = [
     {
         "id": "1",
-        "title": "Understanding PITA: Personal Income Tax in Nigeria",
+        "title": "Understanding NTA 2025: Personal Income Tax in Nigeria",
         "summary": "Learn how personal income tax works for freelancers and self-employed individuals",
         "content": """
-Personal Income Tax Act (PITA) applies to individuals, sole proprietorships, and partnerships in Nigeria.
+Personal Income Tax Act (NTA 2025) applies to individuals, sole proprietorships, and partnerships in Nigeria.
 
 **Tax Rates (Progressive):**
 - First N300,000: 7%
@@ -22,7 +22,7 @@ Personal Income Tax Act (PITA) applies to individuals, sole proprietorships, and
 - Next N1,600,000: 21%
 - Above N3,200,000: 24%
 
-**Who Pays PITA?**
+**Who Pays NTA 2025?**
 - Freelancers and consultants
 - Self-employed professionals
 - Sole proprietors
@@ -163,7 +163,7 @@ async def get_filing_checklist(user: dict = Depends(get_current_user)):
         {"item": "Upload expense receipts", "completed": receipts > 0},
         {"item": "Review flagged transactions", "completed": False},
         {"item": "Generate tax report", "completed": False},
-        {"item": "Register on FIRS TaxPro-Max", "completed": False}
+        {"item": "Register on NRS TaxPro-Max", "completed": False}
     ]
 
     completed_count = sum(1 for item in checklist if item["completed"])

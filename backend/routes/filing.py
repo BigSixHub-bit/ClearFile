@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 
 from database import db
 from utils.auth import get_current_user
-from utils.tax import calculate_pita, calculate_cita, calculate_vat
+from utils.tax import calculate_pit, calculate_cit, calculate_vat
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ router = APIRouter()
 
 @router.post("/tax-guide/ai-walkthrough")
 async def ai_tax_walkthrough(request: Request, user: dict = Depends(get_current_user)):
-    """Generate personalized AI step-by-step FIRS filing guide using user's data."""
+    """Generate personalized AI step-by-step NRS filing guide using user's data."""
     data = await request.json()
     step = data.get("step", 1)
     session_id = data.get("session_id") or f"taxguide-{user['id']}-{uuid.uuid4().hex[:8]}"
@@ -39,11 +39,11 @@ async def ai_tax_walkthrough(request: Request, user: dict = Depends(get_current_
     taxable_income = max(0, gross_income - deductible)
 
     if business_type == "company":
-        income_tax = calculate_cita(taxable_income, gross_income)
-        tax_type = "CITA"
+        income_tax = calculate_cit(taxable_income, gross_income)
+        tax_type = "NTA 2025"
     else:
-        income_tax = calculate_pita(taxable_income)
-        tax_type = "PITA"
+        income_tax = calculate_pit(taxable_income)
+        tax_type = "NTA 2025"
 
     vat = calculate_vat(gross_income) if business_type in ["sme", "company"] else 0
     total_tax = income_tax + vat
@@ -54,19 +54,19 @@ async def ai_tax_walkthrough(request: Request, user: dict = Depends(get_current_
             "title": "Register / Log in to TaxPro-Max",
             "portal": "https://taxpromax.firs.gov.ng",
             "instructions": [
-                "Visit the FIRS TaxPro-Max portal at taxpromax.firs.gov.ng",
+                "Visit the NRS TaxPro-Max portal at taxpromax.firs.gov.ng",
                 "If first time: Click 'Sign Up' and register with your TIN (Tax Identification Number)",
                 "If returning: Log in with your email and password",
                 "Ensure your profile details match your business registration"
             ],
-            "tip": "If you don't have a TIN, visit any FIRS office or apply online at jtb.gov.ng"
+            "tip": "If you don't have a TIN, visit any NRS office or apply online at jtb.gov.ng"
         },
         2: {
             "title": "Select the Correct Return Form",
             "portal": "https://taxpromax.firs.gov.ng",
             "instructions": [
                 f"After login, navigate to 'File Returns' in the menu",
-                f"Select return type: {'Company Income Tax (CITA)' if business_type == 'company' else 'Personal Income Tax (PITA)'}",
+                f"Select return type: {'Company Income Tax (NTA 2025)' if business_type == 'company' else 'Personal Income Tax (NTA 2025)'}",
                 f"Choose the assessment year: {datetime.now().year - 1}",
                 "Click 'Start Filing' to begin the form"
             ],
@@ -129,7 +129,7 @@ async def ai_tax_walkthrough(request: Request, user: dict = Depends(get_current_
                 f"Total amount to pay: N{total_tax:,.0f}",
                 "Payment options: Bank transfer, Card payment, or ePayment",
                 "Download and save your filing receipt as proof",
-                "You'll receive an acknowledgement email from FIRS"
+                "You'll receive an acknowledgement email from NRS"
             ],
             "your_data": {
                 "total_to_pay": total_tax
@@ -150,7 +150,7 @@ async def ai_tax_walkthrough(request: Request, user: dict = Depends(get_current_
                 session_id=session_id,
                 system_message=(
                     "You are a Nigerian tax filing expert. Give a brief, practical tip (2-3 sentences max) "
-                    f"for a {business_type} in {state} state who is on Step {step} of filing on FIRS TaxPro-Max. "
+                    f"for a {business_type} in {state} state who is on Step {step} of filing on NRS TaxPro-Max. "
                     "Be specific to their data. No greetings."
                 )
             ).with_model("anthropic", "claude-sonnet-4-5-20250929")

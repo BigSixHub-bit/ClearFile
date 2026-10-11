@@ -99,7 +99,7 @@ export default function TaxObligations() {
             <CardContent className="p-6">
               <div className="flex items-center gap-3 mb-2">
                 <Landmark className="w-6 h-6 text-[#3B82F6]" />
-                <span className="text-sm font-medium text-[#3B82F6]">Federal (FIRS)</span>
+                <span className="text-sm font-medium text-[#3B82F6]">Federal (NRS)</span>
               </div>
               <p className="text-3xl font-bold text-[#3B82F6]">{formatCurrency(obligations?.total_federal || 0)}</p>
               <p className="text-xs text-blue-500 mt-1">{obligations?.federal?.length || 0} obligations</p>
@@ -123,7 +123,7 @@ export default function TaxObligations() {
             <CardHeader className="border-b border-blue-100">
               <CardTitle className="text-lg flex items-center gap-2" style={{ fontFamily: 'Clash Display, Satoshi, sans-serif' }}>
                 <Landmark className="w-5 h-5 text-[#3B82F6]" />
-                Federal Tax Obligations (FIRS)
+                Federal Tax Obligations (NRS)
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0 divide-y divide-blue-50">
@@ -145,7 +145,7 @@ export default function TaxObligations() {
                     {ob.next_deadline && <div>Next: <span className="font-medium text-white">{ob.next_deadline}</span></div>}
                   </div>
                   <a href={ob.portal} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-3 text-sm text-[#3B82F6] hover:underline">
-                    Go to FIRS Portal <ExternalLink className="w-3 h-3" />
+                    Go to NRS Portal <ExternalLink className="w-3 h-3" />
                   </a>
                 </div>
               ))}

@@ -102,7 +102,7 @@ export default function TaxGuide() {
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="text-center sm:text-left">
                     <h3 className="font-bold text-white text-lg">Ready to File?</h3>
-                    <p className="text-[#A5D6A7]">Go to the official FIRS TaxPro-Max portal</p>
+                    <p className="text-[#A5D6A7]">Go to the official NRS TaxPro-Max portal</p>
                   </div>
                   <Button
                     onClick={() => window.open(guide?.firs_portal, '_blank')}

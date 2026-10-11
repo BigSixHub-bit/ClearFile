@@ -31,24 +31,35 @@ APP_NAME = "clearfileng"
 
 # Subscription Prices (kobo)
 SUBSCRIPTION_PRICES = {
-    "starter": 200000,
-    "pro": 400000,
-    "growth": 400000,
+    "bank_connect": 250000,
+    "sme_starter": 800000,
+    "sme_pro": 1800000,
 }
 
-# Nigerian Tax Rates
-PITA_RATES = [
-    (300000, 0.07),
-    (300000, 0.11),
-    (500000, 0.15),
-    (500000, 0.19),
-    (1600000, 0.21),
-    (float('inf'), 0.24)
+FILING_PRICES = {
+    "self_file": 5000,
+    "sme_filing": 12000,
+}
+
+# AI Models (Section 3 — env-driven, never hardcode)
+ANTHROPIC_MODEL_FAST = os.environ.get("ANTHROPIC_MODEL_FAST", "claude-sonnet-5")
+ANTHROPIC_MODEL_DEEP = os.environ.get("ANTHROPIC_MODEL_DEEP", "claude-fable-5")
+
+# Nigerian Tax Rates — Nigeria Tax Act (NTA) 2025, effective Jan 1 2026
+NTA_PIT_BANDS = [
+    (800000, 0.0),
+    (2200000, 0.15),
+    (9000000, 0.18),
+    (12000000, 0.21),
+    (36000000, 0.24),
+    (float('inf'), 0.25)
 ]
 
-CITA_RATE_SMALL = 0.20
-CITA_RATE_LARGE = 0.30
+CIT_RATE_SMALL = 0.0
+CIT_RATE_MEDIUM = 0.20
+CIT_RATE_LARGE = 0.30
 VAT_RATE = 0.075
+VAT_EXEMPTION_TURNOVER = 25000000
 
 WHT_RATES = {
     "dividends": 0.10,

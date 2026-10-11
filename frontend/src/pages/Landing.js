@@ -9,8 +9,8 @@ export default function Landing() {
   const features = [
     { icon: Wallet, title: 'Open Banking', desc: 'Connect Nigerian bank accounts securely. Read-only access — we never touch your money.', color: '#3B82F6' },
     { icon: Zap, title: 'AI Categorizer', desc: 'AI separates business from personal spending. Tax-deductible expenses flagged automatically.', color: '#00C896' },
-    { icon: Calculator, title: 'Tax Engine', desc: 'Accurate PITA, CITA, VAT at 7.5%, and WHT calculations powered by Nigerian tax law.', color: '#F59E0B' },
-    { icon: Landmark, title: 'State vs Federal', desc: 'Auto-route obligations to FIRS or your state revenue service. Never mix them again.', color: '#8B5CF6' },
+    { icon: Calculator, title: 'Tax Engine', desc: 'Accurate NTA 2025, VAT at 7.5%, and WHT calculations powered by Nigerian tax law.', color: '#F59E0B' },
+    { icon: Landmark, title: 'State vs Federal', desc: 'Auto-route obligations to NRS or your state revenue service. Never mix them again.', color: '#8B5CF6' },
     { icon: Award, title: 'TCC Tracker', desc: 'Track Tax Clearance Certificate readiness. Generate your application pack with one click.', color: '#EC4899' },
     { icon: Bot, title: 'AI Assistant', desc: 'Ask anything about Nigerian taxes. Get instant, clear, actionable answers.', color: '#00C896' },
   ];

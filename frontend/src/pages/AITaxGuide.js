@@ -133,7 +133,7 @@ export default function AITaxGuide() {
           </button>
           <div>
             <h1 className="text-2xl font-display font-semibold text-white">AI Tax Filing Guide</h1>
-            <p className="text-[#A1A1AA] text-sm">Step-by-step FIRS walkthrough with your data</p>
+            <p className="text-[#A1A1AA] text-sm">Step-by-step NRS walkthrough with your data</p>
           </div>
         </div>
 
@@ -147,7 +147,7 @@ export default function AITaxGuide() {
             </div>
             <h2 className="text-xl font-display font-semibold text-white mb-2">Unlock AI Tax Guide</h2>
             <p className="text-[#A1A1AA] text-sm mb-1 max-w-sm mx-auto">
-              Let ClearFile AI walk you step-by-step through the FIRS portal using your exact financial data.
+              Let ClearFile AI walk you step-by-step through the NRS portal using your exact financial data.
             </p>
             <p className="text-2xl font-display font-semibold text-white mb-6 mt-4">₦70,000</p>
             <button onClick={handleUnlock} className="btn-primary px-8 py-3 text-sm inline-flex items-center gap-2" data-testid="unlock-ai-guide-btn">

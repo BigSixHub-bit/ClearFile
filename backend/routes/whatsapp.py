@@ -20,7 +20,7 @@ from typing import Optional
 
 from database import db
 from utils.auth import get_current_user
-from utils.tax import calculate_pita, calculate_cita
+from utils.tax import calculate_pit, calculate_cit
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 logger = logging.getLogger(__name__)
@@ -453,7 +453,7 @@ async def send_tax_summary(user_id: str, phone: str):
     deductible_cats = {"Rent", "Utilities", "Professional Fees", "Marketing", "Equipment", "Subscriptions", "Transport", "Telecommunications"}
     deductible = sum(tx["amount"] for tx in expense_txs if tx.get("category") in deductible_cats)
     taxable = max(0, total_revenue - deductible)
-    estimated_tax = calculate_pita(taxable)
+    estimated_tax = calculate_pit(taxable)
 
     reserve = await db.tax_reserves.find_one({"user_id": user_id}, {"_id": 0})
     tax_reserve = reserve.get("amount", 0) if reserve else 0

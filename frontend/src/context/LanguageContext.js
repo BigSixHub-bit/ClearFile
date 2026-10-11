@@ -133,7 +133,7 @@ const translations = {
     checklist: "Filing Checklist",
     documents: "Documents Needed",
     deadlines: "Deadlines",
-    firs: "Go to FIRS Portal",
+    firs: "Go to NRS Portal",
     
     // Notifications
     notifications: "Notifications",
@@ -143,11 +143,11 @@ const translations = {
     
     // Landing page
     heroTitle: "Take Control of Your Nigerian Taxes",
-    heroSubtitle: "Track expenses, auto-categorize transactions, and calculate your PITA, CITA, and VAT with confidence.",
+    heroSubtitle: "Track expenses, auto-categorize transactions, and calculate your NTA 2025, and VAT with confidence.",
     featureTracking: "Auto-Tracking",
     featureTrackingDesc: "Link your bank for automatic expense categorization",
     featureTax: "Smart Tax Engine",
-    featureTaxDesc: "Calculate PITA, CITA, VAT (7.5%) and WHT accurately",
+    featureTaxDesc: "Calculate NTA 2025, VAT (7.5%) and WHT accurately",
     featureAssistant: "AI Tax Assistant",
     featureAssistantDesc: "Get instant answers to your Nigerian tax questions",
     featureReceipt: "Receipt Scanner",
@@ -285,7 +285,7 @@ const translations = {
     checklist: "Filing Checklist",
     documents: "Papers Wey You Need",
     deadlines: "Deadlines",
-    firs: "Go FIRS Website",
+    firs: "Go NRS Website",
     
     // Notifications
     notifications: "Notifications",
@@ -295,11 +295,11 @@ const translations = {
     
     // Landing page
     heroTitle: "Take Control of Your Nigerian Taxes",
-    heroSubtitle: "Track spending, auto-sort transactions, calculate PITA, CITA, and VAT with peace of mind.",
+    heroSubtitle: "Track spending, auto-sort transactions, calculate NTA 2025, and VAT with peace of mind.",
     featureTracking: "Auto-Tracking",
     featureTrackingDesc: "Connect your bank, we go sort your expenses automatically",
     featureTax: "Smart Tax Engine",
-    featureTaxDesc: "Calculate PITA, CITA, VAT (7.5%) and WHT sharp sharp",
+    featureTaxDesc: "Calculate NTA 2025, VAT (7.5%) and WHT sharp sharp",
     featureAssistant: "AI Tax Helper",
     featureAssistantDesc: "Ask any Nigerian tax question, get answer one time",
     featureReceipt: "Receipt Scanner",

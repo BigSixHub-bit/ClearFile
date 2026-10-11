@@ -16,8 +16,8 @@ from reportlab.lib.enums import TA_CENTER
 
 from database import db
 from utils.auth import get_current_user
-from utils.tax import calculate_pita, calculate_cita, calculate_vat
-from config import PITA_RATES
+from utils.tax import calculate_pit, calculate_cit, calculate_vat
+from config import NTA_PIT_BANDS
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +87,7 @@ async def get_tax_obligations(user: dict = Depends(get_current_user)):
             "tax_type": "VAT",
             "description": "Value Added Tax (7.5%)",
             "amount": vat_amount,
-            "authority": "FIRS (Federal)",
+            "authority": "NRS (Federal)",
             "portal": "https://taxpromax.firs.gov.ng",
             "deadline": "21st of the following month",
             "frequency": "Monthly",
@@ -96,26 +96,26 @@ async def get_tax_obligations(user: dict = Depends(get_current_user)):
 
     # CIT - federal for companies
     if business_type == "company":
-        cit = calculate_cita(taxable_income, gross_income)
+        cit = calculate_cit(taxable_income, gross_income)
         federal_obligations.append({
             "tax_type": "CIT",
             "description": "Company Income Tax",
             "amount": cit,
-            "authority": "FIRS (Federal)",
+            "authority": "NRS (Federal)",
             "portal": "https://taxpromax.firs.gov.ng",
             "deadline": "6 months after financial year end",
             "frequency": "Annual",
             "next_deadline": "June 30, 2026"
         })
 
-    # PIT for freelancers - federal via FIRS
+    # PIT for freelancers - federal via NRS
     if business_type in ["freelancer", "salary_earner"]:
-        pit = calculate_pita(taxable_income)
+        pit = calculate_pit(taxable_income)
         federal_obligations.append({
             "tax_type": "PIT",
-            "description": "Personal Income Tax (PITA)",
+            "description": "Personal Income Tax (NTA 2025)",
             "amount": pit,
-            "authority": "FIRS (Federal)",
+            "authority": "NRS (Federal)",
             "portal": "https://taxpromax.firs.gov.ng",
             "deadline": "March 31st",
             "frequency": "Annual",
@@ -127,7 +127,7 @@ async def get_tax_obligations(user: dict = Depends(get_current_user)):
 
     # PAYE - always state level
     if business_type in ["salary_earner", "company", "sme"]:
-        paye_amount = calculate_pita(taxable_income) if business_type == "salary_earner" else taxable_income * 0.1
+        paye_amount = calculate_pit(taxable_income) if business_type == "salary_earner" else taxable_income * 0.1
         state_obligations.append({
             "tax_type": "PAYE",
             "description": "Pay-As-You-Earn",
@@ -325,11 +325,11 @@ async def simulate_tax(request: Request, user: dict = Depends(get_current_user))
 
     # Calculate taxes
     if business_type == "company":
-        income_tax = calculate_cita(taxable_income, annual_income)
-        tax_type = "Company Income Tax (CITA)"
+        income_tax = calculate_cit(taxable_income, annual_income)
+        tax_type = "Company Income Tax (NTA 2025)"
     else:
-        income_tax = calculate_pita(taxable_income)
-        tax_type = "Personal Income Tax (PITA)"
+        income_tax = calculate_pit(taxable_income)
+        tax_type = "Personal Income Tax (NTA 2025)"
 
     vat = calculate_vat(annual_income) if business_type in ["sme", "company"] else 0
     total_tax = income_tax + vat
@@ -439,11 +439,11 @@ async def auto_categorize_transactions(user: dict = Depends(get_current_user)):
 
     # Calculate tax savings from deductions
     if business_type == "company":
-        tax_without = calculate_cita(total_deductible + total_personal, (total_deductible + total_personal) * 3)
-        tax_with = calculate_cita(total_personal, total_personal * 3)
+        tax_without = calculate_cit(total_deductible + total_personal, (total_deductible + total_personal) * 3)
+        tax_with = calculate_cit(total_personal, total_personal * 3)
     else:
-        tax_without = calculate_pita(total_deductible + total_personal)
-        tax_with = calculate_pita(total_personal)
+        tax_without = calculate_pit(total_deductible + total_personal)
+        tax_with = calculate_pit(total_personal)
 
     tax_savings = round(tax_without - tax_with, 2)
 

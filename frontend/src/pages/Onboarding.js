@@ -32,7 +32,7 @@ export default function Onboarding() {
       subtitle: `Let's set up your financial command center, ${user?.name?.split(' ')[0] || 'there'}.`,
       content: (
         <div className="space-y-3">
-          {['Auto-categorize transactions with AI', 'Calculate taxes (PITA, CITA, VAT)', 'Route obligations to FIRS or state revenue', 'Track TCC readiness', 'AI assistant for tax questions'].map((item, i) => (
+          {['Auto-categorize transactions with AI', 'Calculate taxes (NTA 2025, VAT)', 'Route obligations to NRS or state revenue', 'Track TCC readiness', 'AI assistant for tax questions'].map((item, i) => (
             <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-[#111111] border border-[#1E1E1E]">
               <div className="w-5 h-5 rounded-full bg-[#00C896] flex items-center justify-center flex-shrink-0 mt-0.5">
                 <Check className="w-3 h-3 text-black" />

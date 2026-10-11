@@ -3,8 +3,8 @@ from fastapi import APIRouter, Depends
 
 from database import db
 from utils.auth import get_current_user
-from utils.tax import calculate_pita, calculate_cita, calculate_vat
-from config import PITA_RATES
+from utils.tax import calculate_pit, calculate_cit, calculate_vat
+from config import NTA_PIT_BANDS
 
 router = APIRouter()
 
@@ -39,9 +39,9 @@ async def get_dashboard(user: dict = Depends(get_current_user)):
     taxable_income = max(0, total_income - deductible_expenses)
 
     if business_type == "company":
-        estimated_tax = calculate_cita(taxable_income, total_income * 12)
+        estimated_tax = calculate_cit(taxable_income, total_income * 12)
     else:
-        estimated_tax = calculate_pita(taxable_income)
+        estimated_tax = calculate_pit(taxable_income)
 
     vat_owed = calculate_vat(total_income) if business_type in ["sme", "company"] else 0
 
@@ -106,11 +106,11 @@ async def calculate_taxes(user: dict = Depends(get_current_user)):
     taxable_income = max(0, gross_income - deductible_expenses)
 
     if business_type == "company":
-        income_tax = calculate_cita(taxable_income, gross_income)
-        tax_type = "Company Income Tax (CITA)"
+        income_tax = calculate_cit(taxable_income, gross_income)
+        tax_type = "Company Income Tax (NTA 2025)"
     else:
-        income_tax = calculate_pita(taxable_income)
-        tax_type = "Personal Income Tax (PITA)"
+        income_tax = calculate_pit(taxable_income)
+        tax_type = "Personal Income Tax (NTA 2025)"
 
     vat = calculate_vat(gross_income) if business_type in ["sme", "company"] else 0
     non_deducted = total_expenses - deductible_expenses
@@ -127,6 +127,6 @@ async def calculate_taxes(user: dict = Depends(get_current_user)):
         "total_tax_owed": income_tax + vat,
         "potential_savings": potential_savings,
         "business_type": business_type,
-        "tax_brackets": PITA_RATES if business_type != "company" else None,
+        "tax_brackets": NTA_PIT_BANDS if business_type != "company" else None,
         "disclaimer": "This estimate is for guidance. Consult a certified tax professional for your final filing."
     }

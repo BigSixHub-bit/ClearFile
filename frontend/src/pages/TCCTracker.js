@@ -91,10 +91,10 @@ export default function TCCTracker() {
                   <CheckCircle className="w-12 h-12 text-[#00C896]" />
                 </div>
                 <h3 className="text-2xl font-bold text-[#00C896] mb-2">You're TCC Ready!</h3>
-                <p className="text-[#A1A1AA] mb-6">All requirements met. Generate your FIRS/LIRS Application Pack now.</p>
+                <p className="text-[#A1A1AA] mb-6">All requirements met. Generate your NRS/LIRS Application Pack now.</p>
                 <Button onClick={downloadLetter} size="lg" className="bg-[#00C896] hover:bg-[#00dba6] text-white rounded-xl px-8 py-6 text-lg" data-testid="download-tcc-letter">
                   <Download className="w-5 h-5 mr-2" />
-                  Generate FIRS/LIRS Application Pack
+                  Generate NRS/LIRS Application Pack
                 </Button>
               </div>
             ) : (

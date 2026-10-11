@@ -29,11 +29,11 @@ async def chat_with_assistant(message: ChatMessage, user: dict = Depends(get_cur
 
     system_message = f"""You are ClearFile NG Tax Assistant, an expert on Nigerian tax laws and financial management.
     You help Nigerian freelancers, SMEs, and companies understand:
-    - Personal Income Tax (PITA) rates (7% to 24% progressive)
-    - Company Income Tax (CITA) at 20% for small companies (<N25M) or 30% for larger ones
+    - Personal Income Tax (NTA 2025) rates (7% to 24% progressive)
+    - Company Income Tax (NTA 2025) at 20% for small companies (<N25M) or 30% for larger ones
     - VAT at 7.5%
     - Withholding Tax (WHT) rates
-    - FIRS filing requirements and deadlines
+    - NRS filing requirements and deadlines
     - Tax-deductible expenses
     - Finance Act 2023/2024 changes
 

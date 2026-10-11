@@ -216,11 +216,11 @@ export default function TaxCalculator() {
           </Card>
         )}
 
-        {/* PITA Brackets */}
+        {/* NTA 2025 Brackets */}
         {taxData?.tax_brackets && (
           <Card className="card-dark">
             <CardHeader>
-              <CardTitle className="text-lg" style={{ fontFamily: 'Clash Display, Satoshi, sans-serif' }}>PITA Tax Brackets</CardTitle>
+              <CardTitle className="text-lg" style={{ fontFamily: 'Clash Display, Satoshi, sans-serif' }}>NTA 2025 Tax Brackets</CardTitle>
               <CardDescription>Progressive tax rates for personal income</CardDescription>
             </CardHeader>
             <CardContent>
@@ -294,7 +294,7 @@ export default function TaxCalculator() {
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-white">AI Tax Guide</p>
                   <p className="text-sm text-[#A1A1AA] mt-0.5 leading-relaxed">
-                    Let ClearFile AI walk you step-by-step through the FIRS portal using this exact data.
+                    Let ClearFile AI walk you step-by-step through the NRS portal using this exact data.
                   </p>
                   <span className="inline-block mt-2 text-xs font-bold text-[#D4A017] bg-[#F59E0B]/10 px-2 py-1 rounded-lg border border-[#F59E0B]/20">
                     ₦70,000 unlock
